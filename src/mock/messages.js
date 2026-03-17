@@ -1,0 +1,58 @@
+export const messages = [
+  {
+    id: 501,
+    senderId: 5,
+    receiverId: 3,
+    message: 'Hi Dr. Nguyen, I wanted to ask if I should fast before tomorrow’s appointment?',
+    timestamp: '2026-03-16T15:12:00Z',
+  },
+  {
+    id: 502,
+    senderId: 3,
+    receiverId: 5,
+    message: 'Hi Leila, you don’t need to fast for this visit. Please arrive 10 minutes early.',
+    timestamp: '2026-03-16T15:18:00Z',
+  },
+  {
+    id: 503,
+    senderId: 6,
+    receiverId: 2,
+    message: 'Hello, I need to reschedule my appointment on Thursday. Is there availability next week?',
+    timestamp: '2026-03-15T09:35:00Z',
+  },
+  {
+    id: 504,
+    senderId: 2,
+    receiverId: 6,
+    message: 'Hi Mateo, we have openings Monday and Wednesday morning. Which works best for you?',
+    timestamp: '2026-03-15T09:42:00Z',
+  },
+  {
+    id: 505,
+    senderId: 7,
+    receiverId: 4,
+    message: 'Good morning Dr. Hassan, I have mild knee pain after running. Would you recommend an X-ray?',
+    timestamp: '2026-03-14T11:20:00Z',
+  },
+  {
+    id: 506,
+    senderId: 4,
+    receiverId: 7,
+    message: 'Hi Emma, let’s start with a quick exam and if needed we can order imaging. Please come in on Friday.',
+    timestamp: '2026-03-14T11:25:00Z',
+  },
+  {
+    id: 507,
+    senderId: 8,
+    receiverId: 2,
+    message: 'Can you confirm my appointment time for tomorrow? I want to make sure I arrive on time.',
+    timestamp: '2026-03-17T08:05:00Z',
+  },
+  {
+    id: 508,
+    senderId: 2,
+    receiverId: 8,
+    message: 'Sure Noah, your appointment is scheduled for 10:30 AM in Orthopedics (3rd floor). See you soon!',
+    timestamp: '2026-03-17T08:07:00Z',
+  },
+]
