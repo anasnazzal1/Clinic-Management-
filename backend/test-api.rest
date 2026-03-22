@@ -1,0 +1,287 @@
+### Clinic Management System - API Testing File
+### Use with VS Code REST Client Extension
+### https://marketplace.visualstudio.com/items?itemName=humao.rest-client
+
+@baseUrl = http://localhost:3001
+@contentType = application/json
+
+###
+### AUTHENTICATION ENDPOINTS
+###
+
+### 1. Register New Patient
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "password123",
+  "phone": "+1234567890"
+}
+
+###
+### 2. Verify Email (use token from register response)
+POST {{baseUrl}}/auth/verify-email
+Content-Type: {{contentType}}
+
+{
+  "token": "PASTE_VERIFICATION_TOKEN_HERE"
+}
+
+###
+### 3. Login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+
+###
+### 4. Alternative Login (for testing)
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@test.com",
+  "password": "admin123"
+}
+
+###
+### USER MANAGEMENT ENDPOINTS (ADMIN ONLY)
+###
+### Authorization: Bearer {JWT_TOKEN}
+###
+
+### 5. Get All Users (need JWT token)
+GET {{baseUrl}}/users
+Authorization: Bearer PASTE_JWT_TOKEN_HERE
+
+###
+### 6. Create New Doctor User (Admin)
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+Authorization: Bearer PASTE_JWT_TOKEN_HERE
+
+{
+  "name": "Dr. Sarah Smith",
+  "email": "sarah@clinic.com",
+  "password": "docPassword123",
+  "phone": "+9876543210",
+  "role": "doctor"
+}
+
+###
+### 7. Create New Receptionist User (Admin)
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+Authorization: Bearer PASTE_JWT_TOKEN_HERE
+
+{
+  "name": "Rebecca Johnson",
+  "email": "rebecca@clinic.com",
+  "password": "recPassword123",
+  "phone": "+8765432109",
+  "role": "reception"
+}
+
+###
+### 8. Create New Admin User (Admin)
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+Authorization: Bearer PASTE_JWT_TOKEN_HERE
+
+{
+  "name": "Admin User",
+  "email": "newadmin@clinic.com",
+  "password": "adminPass123",
+  "phone": "+7654321098",
+  "role": "admin"
+}
+
+###
+### 9. Get User by ID (Admin)
+GET {{baseUrl}}/users/PASTE_USER_ID_HERE
+Authorization: Bearer PASTE_JWT_TOKEN_HERE
+
+###
+### 10. Get User by Email (Admin)
+GET {{baseUrl}}/users/email/john@example.com
+Authorization: Bearer PASTE_JWT_TOKEN_HERE
+
+###
+### 11. Update User (Admin)
+PUT {{baseUrl}}/users/PASTE_USER_ID_HERE
+Content-Type: {{contentType}}
+Authorization: Bearer PASTE_JWT_TOKEN_HERE
+
+{
+  "name": "Updated Name",
+  "phone": "+1111111111"
+}
+
+###
+### 12. Delete User (Admin)
+DELETE {{baseUrl}}/users/PASTE_USER_ID_HERE
+Authorization: Bearer PASTE_JWT_TOKEN_HERE
+
+###
+### TEST SCENARIOS
+###
+
+### Scenario 1: Complete Registration Flow
+### Step 1 - Register
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Test Patient",
+  "email": "testpatient@example.com",
+  "password": "testPass123",
+  "phone": "+1234567890"
+}
+
+###
+### Scenario 1 - Step 2 - Verify Email (copy token from Step 1 response)
+POST {{baseUrl}}/auth/verify-email
+Content-Type: {{contentType}}
+
+{
+  "token": "COPY_TOKEN_FROM_STEP_1"
+}
+
+###
+### Scenario 1 - Step 3 - Login with verified email
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "testpatient@example.com",
+  "password": "testPass123"
+}
+
+###
+### Scenario 2: Admin User Management
+### Prerequisites: Be logged in as admin, copy JWT token
+
+### Step 1 - List all users
+GET {{baseUrl}}/users
+Authorization: Bearer ADMIN_JWT_TOKEN
+
+###
+### Step 2 - Create new user
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+Authorization: Bearer ADMIN_JWT_TOKEN
+
+{
+  "name": "Dr. Test Doctor",
+  "email": "testdoctor@clinic.com",
+  "password": "docTestPass123",
+  "role": "doctor"
+}
+
+###
+### Step 3 - Update the user (use ID from Step 2 response)
+PUT {{baseUrl}}/users/USER_ID_FROM_STEP_2
+Content-Type: {{contentType}}
+Authorization: Bearer ADMIN_JWT_TOKEN
+
+{
+  "name": "Dr. Test Doctor Updated",
+  "phone": "+5555555555"
+}
+
+###
+### Step 4 - Get updated user
+GET {{baseUrl}}/users/USER_ID_FROM_STEP_2
+Authorization: Bearer ADMIN_JWT_TOKEN
+
+###
+### Step 5 - Delete the user
+DELETE {{baseUrl}}/users/USER_ID_FROM_STEP_2
+Authorization: Bearer ADMIN_JWT_TOKEN
+
+###
+### ERROR TESTING
+###
+
+### Error: Invalid email format
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Test",
+  "email": "notanemail",
+  "password": "password123"
+}
+
+###
+### Error: Password too short
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Test",
+  "email": "test@example.com",
+  "password": "123"
+}
+
+###
+### Error: Invalid credentials on login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "wrong@example.com",
+  "password": "wrongpassword"
+}
+
+###
+### Error: Missing JWT token
+GET {{baseUrl}}/users
+
+###
+### Error: Invalid role
+POST {{baseUrl}}/users
+Content-Type: {{contentType}}
+Authorization: Bearer ADMIN_JWT_TOKEN
+
+{
+  "name": "Test",
+  "email": "test@example.com",
+  "password": "password123",
+  "role": "invalidrole"
+}
+
+###
+### QUICK REFERENCE - HOW TO USE
+###
+
+# 1. Install VS Code Extension:
+#    REST Client (by Huachao Mao)
+
+# 2. Open this file in VS Code
+
+# 3. Hover over any request and click "Send Request"
+
+# 4. Response appears in the sidebar
+
+# 5. To use JWT token:
+#    a. Run register endpoint
+#    b. Copy verificationToken from response
+#    c. Paste into verify-email request
+#    d. Run verify-email endpoint
+#    e. Run login endpoint
+#    f. Copy accessToken from response
+#    g. Replace PASTE_JWT_TOKEN_HERE with actual token
+#    h. Now you can test all admin endpoints
+
+# 6. To get user ID:
+#    - Run GET /users or create user endpoint
+#    - Copy _id from response
+#    - Paste into other endpoints like GET /users/:id
+
+###
