@@ -20,3 +20,5 @@ export const EmailVerificationTokenSchema = SchemaFactory.createForClass(EmailVe
 EmailVerificationTokenSchema.index({ token: 1 });
 EmailVerificationTokenSchema.index({ userId: 1 });
 EmailVerificationTokenSchema.index({ expiresAt: 1 });
+
+

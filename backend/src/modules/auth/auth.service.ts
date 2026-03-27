@@ -9,7 +9,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
-import { User } from '../users/entities/user.entity';
+import { User } from '../../modules/users/entities/user.entity';
 import { EmailVerificationToken } from './entities/email-verification-token.entity';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -160,3 +160,5 @@ export class AuthService {
     return crypto.randomBytes(32).toString('hex');
   }
 }
+
+

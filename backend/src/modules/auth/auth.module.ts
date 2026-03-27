@@ -5,8 +5,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { User, UserSchema } from '../users/entities/user.entity';
+import { JwtStrategy } from '../../common/strategies/jwt.strategy';
+import { User, UserSchema } from '../../modules/users/entities/user.entity';
 import {
   EmailVerificationToken,
   EmailVerificationTokenSchema,
@@ -34,3 +34,5 @@ import {
   exports: [AuthService, JwtModule],
 })
 export class AuthModule {}
+
+
