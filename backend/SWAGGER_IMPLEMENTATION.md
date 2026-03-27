@@ -109,14 +109,14 @@ You should see the interactive Swagger UI! 🎉
 |------|---------|-------|
 | `package.json` | Added `@nestjs/swagger`, `swagger-ui-express` | +2 deps |
 | `src/main.ts` | Added Swagger initialization, config, UI setup | +35 lines |
-| `src/auth/auth.controller.ts` | Added `@ApiTags`, `@ApiOperation`, `@ApiResponse`, `@ApiBody` | +80 lines |
-| `src/auth/dto/login.dto.ts` | Added `@ApiProperty` decorators | +12 lines |
-| `src/auth/dto/register.dto.ts` | Added `@ApiProperty` decorators | +35 lines |
-| `src/auth/dto/verify-email.dto.ts` | Added `@ApiProperty` decorator | +12 lines |
-| `src/users/users.controller.ts` | Added `@ApiTags`, `@ApiBearerAuth`, `@ApiOperation`, `@ApiParam`, `@ApiResponse`, `@ApiBody` | +120 lines |
-| `src/users/dto/create-user.dto.ts` | Added `@ApiProperty` decorators | +25 lines |
-| `src/users/dto/update-user.dto.ts` | Already had decorators, verified | 0 changes |
-| `src/users/dto/user.dto.ts` | Added `@ApiProperty` decorators to all fields | +45 lines |
+| `src/modules/auth/auth.controller.ts` | Added `@ApiTags`, `@ApiOperation`, `@ApiResponse`, `@ApiBody` | +80 lines |
+| `src/modules/auth/dto/login.dto.ts` | Added `@ApiProperty` decorators | +12 lines |
+| `src/modules/auth/dto/register.dto.ts` | Added `@ApiProperty` decorators | +35 lines |
+| `src/modules/auth/dto/verify-email.dto.ts` | Added `@ApiProperty` decorator | +12 lines |
+| `src/modules/users/users.controller.ts` | Added `@ApiTags`, `@ApiBearerAuth`, `@ApiOperation`, `@ApiParam`, `@ApiResponse`, `@ApiBody` | +120 lines |
+| `src/modules/users/dto/create-user.dto.ts` | Added `@ApiProperty` decorators | +25 lines |
+| `src/modules/users/dto/update-user.dto.ts` | Already had decorators, verified | 0 changes |
+| `src/modules/users/dto/user.dto.ts` | Added `@ApiProperty` decorators to all fields | +45 lines |
 
 **Total Lines Added:** ~360 lines
 
@@ -546,4 +546,6 @@ A: No! Swagger auto-generates from your decorators.
 ---
 
 **Ready to test your API? Open http://localhost:3001/api now! 🎉**
+
+
 

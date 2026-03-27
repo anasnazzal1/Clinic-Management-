@@ -22,10 +22,10 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserDto } from './dto/user.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
-import { UserRole } from '../common/constants/roles.constant';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
+import { Roles } from '../../common/decorators/roles.decorator';
+import { UserRole } from '../../common/constants/roles.constant';
 
 @Controller('users')
 @ApiTags('Users')
@@ -226,3 +226,5 @@ export class UsersController {
     };
   }
 }
+
+

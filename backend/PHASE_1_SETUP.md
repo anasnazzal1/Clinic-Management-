@@ -7,7 +7,7 @@
 - ✅ ConfigModule for environment variables
 - ✅ Async factory for flexible configuration
 
-**Location:** `src/database/database.module.ts`
+**Location:** `src/config/database/database.module.ts`
 
 ### 2. Auth Module (Simplified JWT)
 - ✅ JWT strategy using Passport
@@ -19,11 +19,11 @@
 - ✅ No refresh token (simple 24-hour expiration)
 
 **Key Files:**
-- `src/auth/auth.service.ts` - Core authentication logic
-- `src/auth/auth.controller.ts` - Auth endpoints
-- `src/auth/strategies/jwt.strategy.ts` - JWT validation
-- `src/auth/guards/jwt-auth.guard.ts` - Protect endpoints
-- `src/auth/guards/roles.guard.ts` - Role-based access
+- `src/modules/auth/auth.service.ts` - Core authentication logic
+- `src/modules/auth/auth.controller.ts` - Auth endpoints
+- `src/modules/auth/strategies/jwt.strategy.ts` - JWT validation
+- `src/modules/auth/guards/jwt-auth.guard.ts` - Protect endpoints
+- `src/modules/auth/guards/roles.guard.ts` - Role-based access
 
 ### 3. Users Module (Admin User Management)
 - ✅ Create users (admin only - for doctors, receptionists)
@@ -34,7 +34,7 @@
 - ✅ Delete user (admin only)
 - ✅ Get users by role
 
-**Location:** `src/users/`
+**Location:** `src/modules/users/`
 
 ### 4. Common Utilities
 - ✅ Role constants (ADMIN, RECEPTION, DOCTOR, PATIENT)
@@ -404,4 +404,6 @@ Access to XMLHttpRequest blocked by CORS policy
 - ✅ Global validation pipe
 
 **Ready for**: Phase 2 (Clinics, Doctors, Patients, Receptionists)
+
+
 
