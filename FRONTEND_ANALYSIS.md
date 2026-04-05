@@ -1,109 +1,176 @@
 # Clinic Management System - Frontend Analysis
 
-## Data Models
+## Project Overview
+
+- Frontend built with React + TypeScript + Vite.
+- Uses `react-router-dom` for routes and role-based protected pages in `src/App.tsx`.
+- API clients in `src/lib/api.ts` with Axios base URL `http://localhost:3000/api` and JWT interceptor.
+- Auth state in `src/contexts/AuthContext.tsx`, stored in `localStorage` as `token` and `clinicUser`.
+- UI components based on value from `src/components/ui/*` (shadcn-style components).
+
+## Data Models (from actual app code)
 
 ### 1. User
-```
+```ts
 {
-  id: number,
-  name: string,
-  email: string,
-  password: string,
-  phone?: string,
-  role: 'admin' | 'reception' | 'doctor' | 'patient',
-  isVerified: boolean
+  _id: string;
+  username: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'doctor' | 'receptionist' | 'patient';
+  linkedId?: string;
 }
 ```
 
-### 2. Doctor
-```
+### 2. Clinic (Department)
+```ts
 {
-  id: number,
-  name: string,
-  specialization: string,
-  clinicId: number,
-  schedule: [
-    { day: string, start: string, end: string },
-    ...
-  ]
+  _id: string;
+  name: string;
+  workingDays: string; // e.g. "Mon, Tue, Wed"
+  workingHours: string; // e.g. "09:00 - 17:00"
 }
 ```
 
-### 3. Patient
-```
+### 3. Doctor
+```ts
 {
-  id: number,
-  name: string,
-  gender: string,
-  dateOfBirth: string (YYYY-MM-DD),
-  phone: string,
-  email: string,
-  address: string
+  _id: string;
+  name: string;
+  specialization: string;
+  clinicId: string | { _id: string; name: string };
+  workingDays?: string;
+  workingHours?: string;
+  phone?: string;
+  email?: string;
 }
 ```
 
-### 4. Clinic
-```
+### 4. Patient
+```ts
 {
-  id: number,
-  name: string,
-  floor: string,
-  description: string,
-  image: string (URL),
-  doctors?: [Doctor] (attached data)
+  _id: string;
+  name: string;
+  age?: number;
+  gender?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
 }
 ```
 
 ### 5. Appointment
-```
+```ts
 {
-  id: number,
-  patientId: number,
-  doctorId: number,
-  clinicId: number,
-  date: string (YYYY-MM-DD),
-  time: string (HH:MM),
-  status: 'scheduled' | 'completed' | 'cancelled',
-  doctorName?: string,
-  patientName?: string
+  _id: string;
+  patientId: any;
+  doctorId: any;
+  clinicId: any;
+  date: string;
+  time: string;
+  status: string; // pending, completed, cancelled
 }
 ```
 
-### 6. Medical Record
-```
+### 6. Visit / Medical Record
+```ts
 {
-  id: number,
-  patientId: number,
-  doctorId: number,
-  diagnosis: string,
-  prescription: string,
-  notes: string,
-  visitDate: string (YYYY-MM-DD)
-}
-```
-
-### 7. Message
-```
-{
-  id: number,
-  senderId: number,
-  receiverId: number,
-  message: string,
-  timestamp: string (ISO 8601)
-}
-```
-
-### 8. Verification Token
-```
-{
-  token: string (unique),
-  userId: number
+  _id: string;
+  patientId: any;
+  doctorId: any;
+  date: string;
+  diagnosis?: string;
+  notes?: string;
 }
 ```
 
 ---
 
-## Pages and Data Requirements
+## Frontend Directory Structure
+
+- `src/App.tsx` (routing + ProtectedRoute for roles)
+- `src/main.tsx` (React app bootstrap)
+- `src/pages/` (all routes)
+  - `Landing.tsx` (public homepage, doctors + clinics browse)
+  - `Login.tsx` (no register page in current code)
+  - `NotFound.tsx`
+  - `admin/` (Admin management pages)
+  - `doctor/` (doctor pages)
+  - `patient/` (patient pages)
+  - `receptionist/` (receptionist pages)
+- `src/components/` (shared layout + UI)
+- `src/contexts/AuthContext.tsx` (auth provider)
+- `src/lib/api.ts` (API clients)
+- `src/lib/validateCredentials.ts` (credentials rules)
+- `src/hooks/` (mobile, toast hooks)
+
+---
+
+## Page Details
+
+### 1. Landing (`src/pages/Landing.tsx`)
+- Public page with clinic and doctor listing.
+- APIs used: `clinicsApi.getAll()`, `doctorsApi.getAll()`.
+- Features:
+  - search + filter by specialization
+  - expand/collapse clinics
+  - contact/doctor card modal
+
+### 2. Login (`src/pages/Login.tsx`)
+- Public page for authentication.
+- Calls `AuthContext.login`, which uses `authApi.login`.
+- On success, redirects by role:
+  - admin → `/admin`
+  - doctor → `/doctor`
+  - receptionist → `/reception`
+  - patient → `/patient`
+- Demo credentials built into UI.
+
+### 3. Admin routes
+- `AdminDashboard` - summary cards for counts.
+- `ClinicsManagement` - CRUD clinics (department fields plus working hours/days).
+- `DoctorsManagement` - CRUD doctors and optional user account linking.
+- `PatientsManagement` - list & delete patient records.
+- `ReceptionistsManagement` - manage receptionists (likely via user service).
+- `AdminAppointments` - appointment list/status.
+
+### 4. Doctor routes
+- `DoctorDashboard` - simple cards for appointments.
+- `DoctorAppointmentsPage` - doctor-specific appointment listing.
+
+### 5. Receptionist routes
+- `ReceptionistDashboard` - pending appointments + counts.
+- `AddPatientPage` - create patient + user login account.
+- `BookAppointmentPage` - appointment booking by selecting patient, clinic, doctor, date/time.
+- `ReceptionAppointmentsPage` - list of all appointments.
+
+### 6. Patient routes
+- `PatientDashboard` - summary of upcoming/completed visits.
+- `PatientAppointmentsPage` - list user-specific appointments.
+- `PatientHistoryPage` - shows visit record entries from `visitsApi.getAll()`.
+
+---
+
+## API Client Endpoints (current `src/lib/api.ts`)
+
+- Auth: `POST /auth/login`
+- Clinics: `GET /clinics`, `POST /clinics`, `PUT /clinics/:id`, `DELETE /clinics/:id`
+- Doctors: `GET /doctors`, `POST /doctors`, `PUT /doctors/:id`, `DELETE /doctors/:id`
+- Patients: `GET /patients`, `GET /patients/:id`, `POST /patients`, `PUT /patients/:id`, `DELETE /patients/:id`
+- Receptionists: `GET /receptionists`, `POST /receptionists`, `PUT /receptionists/:id`, `DELETE /receptionists/:id`
+- Appointments: `GET /appointments`, `GET /appointments/:id`, `POST /appointments`, `PUT /appointments/:id`, `DELETE /appointments/:id`
+- Visits: `GET /visits`, `POST /visits`
+- Users: `GET /users`, `GET /users/by-linked/:linkedId`, `POST /users`, `PUT /users/:id`, `DELETE /users/:id`, `POST /auth/register`
+
+---
+
+## Notes on divergence from previous analysis
+
+- No `src/pages/Register.tsx` or `src/pages/Verify.tsx` routes currently exist.
+- Role-based routing is in `App.tsx` + `AuthContext` rather than auth pages.
+- Models are MongoDB-style `_id` with nested population (e.g., `patientId?.name`).
+- Backend endpoints in API layer include `/visits`, not directly `/medical-records`.
+- Components are mostly admin-heavy, with strong frontend validation logic in `DoctorsManagement` and `Receptionist` workflows.
 
 ### 1. **Home Page** (`src/pages/Home.jsx`)
 - **Purpose**: Public landing page showing available clinics
@@ -348,3 +415,4 @@ All currently use localStorage for persistence and can be swapped to backend API
 - [ ] Role-based access control for all endpoints
 - [ ] Email verification token generation & validation
 - [ ] Database schema for all models
+

@@ -430,28 +430,28 @@ Core:
 - package.json (updated)
 
 Database (1 file):
-- src/database/database.module.ts
+- src/config/database/database.module.ts
 
 Auth (7 files):
-- src/auth/auth.module.ts
-- src/auth/auth.service.ts
-- src/auth/auth.controller.ts
-- src/auth/strategies/jwt.strategy.ts
-- src/auth/guards/jwt-auth.guard.ts
-- src/auth/guards/roles.guard.ts
-- src/auth/entities/email-verification-token.entity.ts
-- src/auth/dto/login.dto.ts
-- src/auth/dto/register.dto.ts
-- src/auth/dto/verify-email.dto.ts
+- src/modules/auth/auth.module.ts
+- src/modules/auth/auth.service.ts
+- src/modules/auth/auth.controller.ts
+- src/modules/auth/strategies/jwt.strategy.ts
+- src/modules/auth/guards/jwt-auth.guard.ts
+- src/modules/auth/guards/roles.guard.ts
+- src/modules/auth/entities/email-verification-token.entity.ts
+- src/modules/auth/dto/login.dto.ts
+- src/modules/auth/dto/register.dto.ts
+- src/modules/auth/dto/verify-email.dto.ts
 
 Users (5 files):
-- src/users/users.module.ts
-- src/users/users.service.ts
-- src/users/users.controller.ts
-- src/users/entities/user.entity.ts
-- src/users/dto/create-user.dto.ts
-- src/users/dto/update-user.dto.ts
-- src/users/dto/user.dto.ts
+- src/modules/users/users.module.ts
+- src/modules/users/users.service.ts
+- src/modules/users/users.controller.ts
+- src/modules/users/entities/user.entity.ts
+- src/modules/users/dto/create-user.dto.ts
+- src/modules/users/dto/update-user.dto.ts
+- src/modules/users/dto/user.dto.ts
 
 Common (2 files):
 - src/common/common.module.ts
@@ -471,4 +471,5 @@ PHASE 1 TRACKING:
 
 ## Last Updated: [Current Session]
 **Next Review:** After Phase 1 testing complete
+
 
