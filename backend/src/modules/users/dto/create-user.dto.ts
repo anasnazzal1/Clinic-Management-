@@ -4,6 +4,13 @@ import { UserRole } from '../../../common/constants/roles.constant';
 
 export class CreateUserDto {
   @ApiProperty({
+    description: 'Username for the user account',
+    example: 'john_doe',
+  })
+  @IsString()
+  username: string;
+
+  @ApiProperty({
     description: 'Full name of the user',
     example: 'Dr. Sarah Smith',
   })

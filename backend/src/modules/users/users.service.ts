@@ -15,7 +15,17 @@ import { UpdateUserDto } from './dto/update-user.dto';
 export class UsersService {
   constructor(@InjectModel(User.name) private userModel: Model<User>) {}
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
+  async createAdminUser(createUserDto: CreateUserDto): Promise<User> {
+    if (createUserDto.role !== 'admin') {
+      throw new BadRequestException('POST /users is only for admin account creation. Use dedicated endpoints for doctors, receptionists, and patients.');
+    }
+
+    return this.createUserForRole(createUserDto);
+  }
+
+  async createUserForRole(createUserDto: CreateUserDto & { linkedId?: string }): Promise<User> {
+    // No role restriction here; used internally by module-specific endpoints
+
     // Check if email already exists
     const existingUser = await this.userModel.findOne({
       email: createUserDto.email.toLowerCase(),
@@ -32,7 +42,6 @@ export class UsersService {
       ...createUserDto,
       email: createUserDto.email.toLowerCase(),
       passwordHash,
-      isVerified: createUserDto.role !== 'patient', // Non-patients created by admin are auto-verified
     });
 
     return newUser;
@@ -54,6 +63,14 @@ export class UsersService {
     const user = await this.userModel.findOne({
       email: email.toLowerCase(),
     });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
+  async findByLinkedId(linkedId: string): Promise<User> {
+    const user = await this.userModel.findOne({ linkedId }).select('-passwordHash');
     if (!user) {
       throw new NotFoundException('User not found');
     }

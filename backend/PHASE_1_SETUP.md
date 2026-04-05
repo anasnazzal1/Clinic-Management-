@@ -26,10 +26,10 @@
 - `src/modules/auth/guards/roles.guard.ts` - Role-based access
 
 ### 3. Users Module (Admin User Management)
-- ✅ Create users (admin only - for doctors, receptionists)
+- ✅ Create users (admin only - for doctors, receptionists, patients)
 - ✅ Get all users (admin only)
 - ✅ Get user by ID (admin only)
-- ✅ Get user by email (admin only)
+- ✅ Get user by linked ID (admin only)
 - ✅ Update user (admin only)
 - ✅ Delete user (admin only)
 - ✅ Get users by role
@@ -118,10 +118,10 @@ Response: { user, message }
 
 ### Users Management (Admin Only)
 ```
-POST /users (Create user - for doctors/receptionists)
+POST /users (Create user - for doctors/receptionists/patients)
 GET /users (Get all users)
 GET /users/:id (Get user by ID)
-GET /users/email/:email (Get user by email)
+GET /users/by-linked/:linkedId (Get user by linked ID)
 PUT /users/:id (Update user)
 DELETE /users/:id (Delete user)
 ```
@@ -194,12 +194,13 @@ Token contains: user ID, email, role, name
 ```javascript
 {
   _id: ObjectId,
+  username: String,
   name: String,
   email: String (unique, lowercase),
   passwordHash: String,
   phone: String,
-  role: 'admin' | 'reception' | 'doctor' | 'patient',
-  isVerified: Boolean,
+  role: 'admin' | 'receptionist' | 'doctor' | 'patient',
+  linkedId: ObjectId, // References doctor/patient/receptionist record
   createdAt: Date,
   updatedAt: Date
 }
@@ -321,12 +322,14 @@ npm run lint
 ## 📝 Next Steps: Phase 2
 
 After Phase 1 is working, implement:
-- **Clinics Module** - Full CRUD (public read, admin write)
-- **Doctors Module** - Doctor creation with embedded schedules
-- **Patients Module** - Patient profile management
+- **Clinics Module** - Full CRUD (public read, admin write) with workingDays/workingHours
+- **Doctors Module** - Doctor creation with basic info (name, specialization, clinicId, contact)
+- **Patients Module** - Patient management (name, age, gender, contact, address)
 - **Receptionists Module** - Receptionist account creation
+- **Appointments Module** - Appointment booking and management
+- **Visits Module** - Visit records with diagnosis and notes
 
-See `BACKEND_DEVELOPMENT_PLAN.md` for complete Phase 2 details.
+See `BACKEND_DEVELOPMENT_PLAN.md` for complete Phase 2-3 details.
 
 ---
 
@@ -395,15 +398,15 @@ Access to XMLHttpRequest blocked by CORS policy
 
 **Implemented:**
 - ✅ Database (MongoDB + Mongoose)
-- ✅ Authentication (Register, Login, Email Verify)
-- ✅ User Management (Admin CRUD)
+- ✅ Authentication (Register, Login)
+- ✅ User Management (Admin CRUD with linkedId support)
 - ✅ JWT with 24h expiration
 - ✅ Role-based access control
 - ✅ Email verification tokens
 - ✅ CORS enabled
 - ✅ Global validation pipe
 
-**Ready for**: Phase 2 (Clinics, Doctors, Patients, Receptionists)
+**Ready for**: Phase 2 (Clinics, Doctors, Patients, Receptionists, Appointments, Visits)
 
 
 

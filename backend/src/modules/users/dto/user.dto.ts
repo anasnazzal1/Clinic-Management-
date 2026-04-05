@@ -7,6 +7,12 @@ export class UserDto {
   _id: string;
 
   @ApiProperty({
+    description: 'Username of the user',
+    example: 'john_doe',
+  })
+  username: string;
+
+  @ApiProperty({
     description: 'Full name of the user',
     example: 'John Doe',
   })
@@ -27,16 +33,17 @@ export class UserDto {
 
   @ApiProperty({
     description: 'User role',
-    enum: ['admin', 'reception', 'doctor', 'patient'],
+    enum: ['admin', 'receptionist', 'doctor', 'patient'],
     example: 'patient',
   })
   role: string;
 
   @ApiProperty({
-    description: 'Whether the user has verified their email',
-    example: true,
+    description: 'Linked ID reference (optional)',
+    example: '507f1f77bcf86cd799439011',
+    required: false,
   })
-  isVerified: boolean;
+  linkedId?: string;
 
   @ApiProperty({
     description: 'Account creation timestamp',

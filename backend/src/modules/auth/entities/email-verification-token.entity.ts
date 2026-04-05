@@ -4,16 +4,16 @@ import { Document, Types } from 'mongoose';
 @Schema()
 export class EmailVerificationToken extends Document {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  userId: Types.ObjectId;
+  userId!: Types.ObjectId;
 
   @Prop({ required: true, unique: true })
-  token: string;
+  token!: string;
 
   @Prop({ required: true })
-  expiresAt: Date;
+  expiresAt!: Date;
 
   @Prop({ default: Date.now })
-  createdAt: Date;
+  createdAt!: Date;
 }
 
 export const EmailVerificationTokenSchema = SchemaFactory.createForClass(EmailVerificationToken);
