@@ -10,6 +10,8 @@ import { ClinicsModule } from './modules/clinics/clinics.module';
 import { DoctorsModule } from './modules/doctors/doctors.module';
 import { PatientsModule } from './modules/patients/patients.module';
 import { ReceptionistsModule } from './modules/receptionists/receptionists.module';
+import { AppointmentsModule } from './modules/appointments/appointments.module';
+import { VisitsModule } from './modules/visits/visits.module';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { ReceptionistsModule } from './modules/receptionists/receptionists.modul
     DoctorsModule,
     PatientsModule,
     ReceptionistsModule,
+    AppointmentsModule,
+    VisitsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

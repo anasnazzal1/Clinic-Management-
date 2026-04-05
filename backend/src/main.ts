@@ -6,6 +6,8 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  app.setGlobalPrefix('api');
+
   // Enable CORS
   app.enableCors({
     origin: process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -35,7 +37,7 @@ async function bootstrap() {
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       'JWT-Auth',
     )
-    .addServer('http://localhost:3001', 'Development Server')
+    .addServer('http://localhost:3000', 'Development Server')
     .addServer('https://api.example.com', 'Production Server (not yet deployed)')
     .build();
   const document = SwaggerModule.createDocument(app, config);
@@ -47,9 +49,9 @@ async function bootstrap() {
     customCss: '.topbar { display: none }', // Remove unnecessary UI elements
   });
 
-  const port = process.env.PORT ?? 3001;
+  const port = process.env.PORT ?? 3000;
   await app.listen(port);
-  console.log(`\n🚀 Application is running on: http://localhost:${port}`);
+  console.log(`\n🚀 Application is running on: http://localhost:${port}/api`);
   console.log(`📚 Swagger documentation available at: http://localhost:${port}/api`);
   console.log(`📄 OpenAPI JSON available at: http://localhost:${port}/api-json\n`);
 }
