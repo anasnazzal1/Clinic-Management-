@@ -3,7 +3,6 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { VerifyEmailDto } from './dto/verify-email.dto';
 
 @Controller('auth')
 @ApiTags('Authentication')
@@ -15,9 +14,8 @@ export class AuthController {
   @ApiOperation({
     summary: 'Register a new user',
     description:
-      'Create a new user account. Email verification is required before login. ' +
-      'A verification token will be sent (in response for development). ' +
-      'Patients are created unverified by default.',
+      'Create a new user account. ' +
+      'Patients can register themselves, while other roles are created by admin.',
   })
   @ApiBody({
     type: RegisterDto,
@@ -32,16 +30,16 @@ export class AuthController {
         data: {
           user: {
             _id: '507f1f77bcf86cd799439011',
+            username: 'john_doe',
             name: 'John Doe',
             email: 'john@example.com',
             phone: '+1234567890',
             role: 'patient',
-            isVerified: false,
+            linkedId: null,
             createdAt: '2024-01-15T10:30:00.000Z',
           },
-          verificationToken: 'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6',
         },
-        message: 'Registration successful. Please verify your email.',
+        message: 'Registration successful.',
       },
     },
   })
@@ -64,8 +62,7 @@ export class AuthController {
     summary: 'User login',
     description:
       'Authenticate user with email and password. ' +
-      'Returns a JWT token valid for 24 hours. ' +
-      'User must have verified their email before login.',
+      'Returns a JWT token valid for 24 hours.',
   })
   @ApiBody({
     type: LoginDto,
@@ -80,10 +77,11 @@ export class AuthController {
         data: {
           user: {
             _id: '507f1f77bcf86cd799439011',
+            username: 'john_doe',
             name: 'John Doe',
             email: 'john@example.com',
             role: 'patient',
-            isVerified: true,
+            linkedId: null,
           },
           accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
         },
@@ -93,7 +91,7 @@ export class AuthController {
   })
   @ApiResponse({
     status: 401,
-    description: 'Invalid credentials or email not verified',
+    description: 'Invalid credentials',
   })
   async login(@Body() loginDto: LoginDto) {
     const result = await this.authService.login(loginDto);
@@ -101,48 +99,6 @@ export class AuthController {
       success: true,
       data: result,
       message: 'Login successful',
-    };
-  }
-
-  @Post('verify-email')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Verify email address',
-    description:
-      'Verify user email using the verification token received during registration. ' +
-      'Token is valid for 24 hours. After verification, user can login.',
-  })
-  @ApiBody({
-    type: VerifyEmailDto,
-    description: 'Email verification token',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Email successfully verified',
-    schema: {
-      example: {
-        success: true,
-        data: {
-          _id: '507f1f77bcf86cd799439011',
-          name: 'John Doe',
-          email: 'john@example.com',
-          isVerified: true,
-          role: 'patient',
-        },
-        message: 'Email verified successfully. You can now login.',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid or expired token',
-  })
-  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
-    const result = await this.authService.verifyEmail(verifyEmailDto);
-    return {
-      success: true,
-      data: result,
-      message: result.message,
     };
   }
 }

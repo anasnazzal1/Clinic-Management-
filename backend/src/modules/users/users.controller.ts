@@ -57,11 +57,11 @@ export class UsersController {
     description: 'Forbidden - only admin can create users',
   })
   async create(@Body() createUserDto: CreateUserDto) {
-    const user = await this.usersService.create(createUserDto);
+    const user = await this.usersService.createAdminUser(createUserDto);
     return {
       success: true,
       data: user,
-      message: 'User created successfully',
+      message: 'Admin user created successfully',
     };
   }
 
@@ -149,6 +149,39 @@ export class UsersController {
   })
   async findByEmail(@Param('email') email: string) {
     const user = await this.usersService.findByEmail(email);
+    return {
+      success: true,
+      data: user,
+      message: 'User retrieved successfully',
+    };
+  }
+
+  @Get('by-linked/:linkedId')
+  @Roles([UserRole.ADMIN])
+  @ApiOperation({
+    summary: 'Get user by linked ID',
+    description: 'Admin only endpoint to retrieve a user by their linked ID.',
+  })
+  @ApiParam({
+    name: 'linkedId',
+    description: 'User linked ID',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User retrieved successfully',
+    type: UserDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - only admin can view users',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  async findByLinkedId(@Param('linkedId') linkedId: string) {
+    const user = await this.usersService.findByLinkedId(linkedId);
     return {
       success: true,
       data: user,

@@ -3,6 +3,15 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class UpdateUserDto {
   @ApiProperty({
+    description: 'Updated username',
+    example: 'john_doe_updated',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  username?: string;
+
+  @ApiProperty({
     description: 'Updated full name',
     example: 'Dr. Sarah Johnson',
     required: false,
@@ -29,6 +38,15 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @ApiProperty({
+    description: 'Updated linked ID reference',
+    example: '507f1f77bcf86cd799439011',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  linkedId?: string;
 }
 
 
