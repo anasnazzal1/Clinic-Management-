@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
-import { appointmentsApi, patientsApi, doctorsApi, clinicsApi, visitsApi } from '@/lib/api';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import httpApi, { appointmentsApi, patientsApi, doctorsApi, clinicsApi, visitsApi } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { StatusBadge, AppointmentStatus } from '@/components/StatusBadge';
@@ -35,9 +34,31 @@ const STATUS_STYLES: Record<AppointmentStatus, string> = {
   deleted:   'bg-muted text-muted-foreground border-border',
 };
 
+const SLOT_CONFLICT_TOAST =
+  'This time slot is already booked for the selected doctor. Please choose a different time.';
+
+function extractApiErrorMessage(err: unknown): string {
+  const data = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data;
+  const m = data?.message;
+  if (Array.isArray(m)) return m.join(' ');
+  return typeof m === 'string' ? m : '';
+}
+
+/** True when the server response indicates a doctor/date/time double-booking. */
+function isAppointmentTimeSlotConflict(err: unknown): boolean {
+  const res = (err as { response?: { status?: number; data?: { message?: string | string[] } } })?.response;
+  if (!res) return false;
+  const status = res.status ?? 0;
+  const msg = extractApiErrorMessage(err).toLowerCase();
+  if (status === 409) return true;
+  if (msg.includes('already booked') || msg.includes('time slot')) return true;
+  if ((status === 400 || status === 500) && (msg.includes('e11000') || msg.includes('duplicate key'))) return true;
+  return false;
+}
+
 const emptyForm = {
   patientId: '', clinicId: '', doctorId: '',
-  date: '', time: '', notes: '', diagnosis: '', status: 'pending' as AppointmentStatus,
+  date: '', time: '', status: 'pending' as AppointmentStatus,
 };
 
 const AdminAppointments = () => {
@@ -56,6 +77,68 @@ const AdminAppointments = () => {
   const [form, setForm]               = useState(emptyForm);
   const [saving, setSaving]           = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Appointment | null>(null);
+
+  const [clinicScheduleLine, setClinicScheduleLine] = useState('');
+  const [bookedTimesForDay, setBookedTimesForDay] = useState<string[]>([]);
+
+  const selectedDoctor = useMemo(
+    () => filteredDoctors.find((d: { _id: string }) => String(d._id) === String(form.doctorId)),
+    [filteredDoctors, form.doctorId],
+  );
+
+  useEffect(() => {
+    if (!form.clinicId) {
+      setClinicScheduleLine('');
+      return;
+    }
+    let cancelled = false;
+    httpApi
+      .get(`/clinics/${form.clinicId}`)
+      .then(res => {
+        if (cancelled) return;
+        const c = (res.data as { data?: { workingDays?: string; workingHours?: string } })?.data;
+        if (c) {
+          setClinicScheduleLine(
+            `Working Days: ${c.workingDays ?? '—'} | Hours: ${c.workingHours ?? '—'}`,
+          );
+        } else setClinicScheduleLine('');
+      })
+      .catch(() => {
+        if (!cancelled) setClinicScheduleLine('');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [form.clinicId]);
+
+  useEffect(() => {
+    if (!form.date || !form.doctorId) {
+      setBookedTimesForDay([]);
+      return;
+    }
+    let cancelled = false;
+    appointmentsApi
+      .getAll()
+      .then(r => {
+        if (cancelled) return;
+        const list = r.data || [];
+        const times = list
+          .filter((a: Appointment) => {
+            if (editing && a._id === editing._id) return false;
+            const did = a.doctorId?._id ?? (a.doctorId as unknown as string | undefined);
+            return String(did) === String(form.doctorId) && a.date === form.date && a.status !== 'cancelled' && a.status !== 'deleted';
+          })
+          .map(a => a.time)
+          .filter(Boolean);
+        setBookedTimesForDay([...new Set(times)].sort());
+      })
+      .catch(() => {
+        if (!cancelled) setBookedTimesForDay([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [form.date, form.doctorId, editing?._id]);
 
   // ── Load reference data once ──────────────────────────────────────────────
   useEffect(() => {
@@ -117,8 +200,6 @@ const AdminAppointments = () => {
       doctorId:   a.doctorId?._id   ?? '',
       date:       a.date,
       time:       a.time,
-      notes:      a.notes      ?? '',
-      diagnosis:  a.diagnosis  ?? '',
       status:     a.status,
     });
     setDialogOpen(true);
@@ -133,7 +214,15 @@ const AdminAppointments = () => {
     setSaving(true);
     try {
       if (editing) {
-        const { data: updated } = await appointmentsApi.update(editing._id, form);
+        const updatedPayload = {
+          patientId: form.patientId,
+          doctorId: form.doctorId,
+          clinicId: form.clinicId,
+          date: form.date,
+          time: form.time,
+          status: form.status,
+        };
+        const { data: updated } = await appointmentsApi.update(editing._id, updatedPayload);
         setAppointments(prev => prev.map(a => a._id === editing._id ? updated : a));
         // If status changed to completed, create a visit record
         if (form.status === 'completed' && editing.status !== 'completed') {
@@ -142,15 +231,22 @@ const AdminAppointments = () => {
         toast.success('Appointment updated');
       } else {
         const { data: created } = await appointmentsApi.create({
-          patientId: form.patientId, doctorId: form.doctorId, clinicId: form.clinicId,
-          date: form.date, time: form.time, notes: form.notes, diagnosis: form.diagnosis,
+          patientId: form.patientId,
+          doctorId: form.doctorId,
+          clinicId: form.clinicId,
+          date: form.date,
+          time: form.time,
         });
         setAppointments(prev => [created, ...prev]);
         toast.success('Appointment created');
       }
       setDialogOpen(false);
-    } catch (e: any) {
-      toast.error(e.response?.data?.message ?? 'Failed to save appointment');
+    } catch (e: unknown) {
+      if (isAppointmentTimeSlotConflict(e)) {
+        toast.error(SLOT_CONFLICT_TOAST);
+      } else {
+        toast.error(extractApiErrorMessage(e) || 'Failed to save appointment');
+      }
     } finally {
       setSaving(false);
     }
@@ -194,8 +290,8 @@ const AdminAppointments = () => {
         patientId:     pid,
         doctorId:      did,
         date:          appt.date,
-        notes:         appt.notes     ?? '',
-        diagnosis:     appt.diagnosis ?? '',
+        notes:         '',
+        diagnosis:     '',
       });
     } catch {
       // Visit creation is best-effort; don't block the UI
@@ -356,6 +452,9 @@ const AdminAppointments = () => {
                   {clinics.map(c => <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {clinicScheduleLine ? (
+                <p className="text-xs text-muted-foreground mt-1.5">{clinicScheduleLine}</p>
+              ) : null}
             </div>
 
             {/* Doctor */}
@@ -369,6 +468,12 @@ const AdminAppointments = () => {
                   ))}
                 </SelectContent>
               </Select>
+              {selectedDoctor ? (
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Available: {(selectedDoctor as { workingDays?: string }).workingDays ?? '—'} | Hours:{' '}
+                  {(selectedDoctor as { workingHours?: string }).workingHours ?? '—'}
+                </p>
+              ) : null}
             </div>
 
             {/* Date & Time */}
@@ -379,6 +484,13 @@ const AdminAppointments = () => {
                   value={form.date}
                   onChange={v => setForm(f => ({ ...f, date: v }))}
                 />
+                {form.date && form.doctorId ? (
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    {bookedTimesForDay.length === 0
+                      ? 'No other bookings for this doctor on this date.'
+                      : `Booked times: ${bookedTimesForDay.join(', ')}`}
+                  </p>
+                ) : null}
               </div>
               <div>
                 <Label>Time</Label>
@@ -406,27 +518,6 @@ const AdminAppointments = () => {
                 </Select>
               </div>
             )}
-
-            {/* Notes */}
-            <div>
-              <Label>Notes</Label>
-              <Textarea
-                rows={3}
-                placeholder="Optional notes..."
-                value={form.notes}
-                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              />
-            </div>
-
-            {/* Diagnosis */}
-            <div>
-              <Label>Diagnosis</Label>
-              <Input
-                placeholder="Optional diagnosis..."
-                value={form.diagnosis}
-                onChange={e => setForm(f => ({ ...f, diagnosis: e.target.value }))}
-              />
-            </div>
           </div>
 
           <DialogFooter>

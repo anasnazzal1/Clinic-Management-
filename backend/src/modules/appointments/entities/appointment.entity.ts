@@ -5,8 +5,11 @@ export type AppointmentDocument = Appointment & Document;
 
 export enum AppointmentStatus {
   PENDING = 'pending',
+  PENDING_APPROVAL = 'pending_approval',
+  SCHEDULED = 'scheduled',
   COMPLETED = 'completed',
   CANCELLED = 'cancelled',
+  DELETED = 'deleted',
 }
 
 @Schema({ timestamps: true })

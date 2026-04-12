@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { doctorsApi, clinicsApi, usersApi } from '@/lib/api';
+import { useState, useEffect, useMemo } from 'react';
+import httpApi, { doctorsApi, clinicsApi, usersApi } from '@/lib/api';
 import { validateCredentials, hasCredentialErrors, type CredentialErrors } from '@/lib/validateCredentials';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Pencil, Trash2, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Clock } from 'lucide-react';
 import DeleteConfirmDialog from '@/components/DeleteConfirmDialog';
 import { toast } from 'sonner';
 import { TimePicker } from '@/components/ui/time-picker';
@@ -38,6 +38,65 @@ function parseTime(str: string): string {
   return `${String(h).padStart(2, '0')}:${min}`;
 }
 
+function buildHalfHourSlots(): string[] {
+  const slots: string[] = [];
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 30]) {
+      slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+    }
+  }
+  return slots;
+}
+
+const HALF_HOUR_SLOTS = buildHalfHourSlots();
+
+/** Parse "HH:mm - HH:mm" or "9:00 AM - 5:00 PM" into 24h bounds. */
+function parseWorkingHoursRange(workingHours: string): { min: string; max: string } | null {
+  if (!workingHours?.trim()) return null;
+  const parts = workingHours.split(/\s*-\s*/);
+  if (parts.length !== 2) return null;
+  const a = parseTime(parts[0].trim());
+  const b = parseTime(parts[1].trim());
+  if (!a || !b) return null;
+  return a <= b ? { min: a, max: b } : { min: b, max: a };
+}
+
+function slotsBetweenInclusive(min: string, max: string): string[] {
+  return HALF_HOUR_SLOTS.filter(t => t >= min && t <= max);
+}
+
+function timeToMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function rangesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
+  const as = timeToMinutes(aStart);
+  const ae = timeToMinutes(aEnd);
+  const bs = timeToMinutes(bStart);
+  const be = timeToMinutes(bEnd);
+  return as < be && bs < ae;
+}
+
+function scheduleConflictsWithOther(
+  formDays: string[],
+  formStart: string,
+  formEnd: string,
+  other: { workingDays?: string; workingHours?: string },
+): boolean {
+  if (!formStart || !formEnd || formDays.length === 0) return false;
+  const otherDays = parseDays(other.workingDays || '');
+  if (otherDays.length === 0) return false;
+  const daySet = new Set(otherDays);
+  if (!formDays.some(d => daySet.has(d))) return false;
+  const oh = (other.workingHours || '').split(/\s*-\s*/);
+  if (oh.length !== 2) return false;
+  const os = parseTime(oh[0].trim());
+  const oe = parseTime(oh[1].trim());
+  if (!os || !oe) return false;
+  return rangesOverlap(formStart, formEnd, os, oe);
+}
+
 const emptyForm = {
   name: '', specialization: '', phone: '', email: '', clinicId: '',
   workingDays: [] as string[], startTime: '', endTime: '',
@@ -55,11 +114,80 @@ const DoctorsManagement = () => {
   const [credErrors, setCredErrors] = useState<CredentialErrors>({});
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
 
+  const [clinicDetail, setClinicDetail] = useState<{ workingDays: string; workingHours: string } | null>(null);
+
+  const clinicBounds = useMemo(() => {
+    if (!clinicDetail) return null;
+    const allowedDaysParsed = parseDays(clinicDetail.workingDays || '');
+    const displayDays =
+      allowedDaysParsed.length > 0 ? ALL_DAYS.filter(d => allowedDaysParsed.includes(d)) : ALL_DAYS;
+    const tw = parseWorkingHoursRange(clinicDetail.workingHours || '');
+    return { displayDays, tw };
+  }, [clinicDetail]);
+
+  const clinicTimeSlots = useMemo(() => {
+    if (!clinicBounds?.tw) return null;
+    return slotsBetweenInclusive(clinicBounds.tw.min, clinicBounds.tw.max);
+  }, [clinicBounds]);
+
+  const clinicConstrainedTimes = !!(clinicTimeSlots && clinicTimeSlots.length > 0);
+
+  useEffect(() => {
+    if (!open) {
+      setClinicDetail(null);
+      return;
+    }
+    if (!form.clinicId) {
+      setClinicDetail(null);
+      return;
+    }
+    let cancelled = false;
+    httpApi
+      .get(`/clinics/${form.clinicId}`)
+      .then(res => {
+        if (cancelled) return;
+        const c = (res.data as { data?: { workingDays?: string; workingHours?: string } })?.data;
+        if (c) setClinicDetail({ workingDays: c.workingDays || '', workingHours: c.workingHours || '' });
+        else setClinicDetail(null);
+      })
+      .catch(() => {
+        if (!cancelled) setClinicDetail(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, form.clinicId]);
+
+  useEffect(() => {
+    if (!open || !clinicBounds) return;
+    const { displayDays, tw } = clinicBounds;
+    setForm(f => {
+      const wd = f.workingDays.filter(d => displayDays.includes(d));
+      let st = f.startTime;
+      let et = f.endTime;
+      if (tw) {
+        if (st && (st < tw.min || st > tw.max)) st = '';
+        if (et && (et < tw.min || et > tw.max)) et = '';
+        if (st && et && et <= st) et = '';
+      }
+      const wdKey = [...wd].sort().join(',');
+      const prevWdKey = [...f.workingDays].sort().join(',');
+      if (wdKey === prevWdKey && st === f.startTime && et === f.endTime) return f;
+      return { ...f, workingDays: wd, startTime: st, endTime: et };
+    });
+  }, [clinicBounds, open]);
+
   const load = () => {
-    doctorsApi.getAll({ search: search || undefined }).then(r => setData(r.data)).catch(() => {});
+    doctorsApi.getAll().then(r => setData(r.data)).catch(() => {});
     clinicsApi.getAll().then(r => setClinics(r.data)).catch(() => {});
   };
-  useEffect(() => { load(); }, [search]);
+  useEffect(() => { load(); }, []);
+
+  const filteredData = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return data;
+    return data.filter((d: { name?: string }) => (d.name ?? '').toLowerCase().includes(q));
+  }, [data, search]);
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setCredErrors({}); setOpen(true); };
   const openEdit = async (d: any) => {
@@ -87,6 +215,26 @@ const DoctorsManagement = () => {
   const handleSave = async () => {
     if (!form.name.trim() || !form.specialization.trim()) { toast.error('Name and specialization are required'); return; }
     if (form.startTime && form.endTime && form.endTime <= form.startTime) { toast.error('End time must be after start time'); return; }
+
+    if (form.clinicId && form.workingDays.length > 0 && form.startTime && form.endTime) {
+      try {
+        const { data: peers } = await doctorsApi.getByClinic(form.clinicId);
+        const selfId = editing?._id;
+        const conflict = (peers as any[]).some(
+          doc =>
+            doc &&
+            String(doc._id) !== String(selfId) &&
+            scheduleConflictsWithOther(form.workingDays, form.startTime, form.endTime, doc),
+        );
+        if (conflict) {
+          toast.error('Another doctor in this clinic already has this schedule. Please choose different hours.');
+          return;
+        }
+      } catch {
+        toast.error('Could not verify schedule conflicts.');
+        return;
+      }
+    }
 
     if (!editing) {
       // Credentials are optional for doctors, but if either field is filled both must be valid
@@ -126,10 +274,11 @@ const DoctorsManagement = () => {
         }
         toast.success('Doctor updated');
       } else {
-        const { data: created } = await doctorsApi.create(payload);
-        if (form.username && form.password) {
-          await usersApi.register({ username: form.username, password: form.password, role: 'doctor', name: form.name, email: form.email, linkedId: created._id });
-        }
+        const { data: created } = await doctorsApi.create({
+          ...payload,
+          username: form.username,
+          password: form.password,
+        });
         setData(d => [...d, created]);
         toast.success('Doctor added');
       }
@@ -166,8 +315,8 @@ const DoctorsManagement = () => {
           <table className="w-full text-sm">
             <thead><tr className="border-b text-muted-foreground"><th className="text-left py-2 font-medium">Name</th><th className="text-left py-2 font-medium">Specialization</th><th className="text-left py-2 font-medium hidden md:table-cell">Department</th><th className="text-left py-2 font-medium hidden lg:table-cell">Schedule</th><th className="text-right py-2 font-medium">Actions</th></tr></thead>
             <tbody>
-              {data.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">No doctors found.</td></tr>}
-              {data.map(d => (
+              {filteredData.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">No doctors found.</td></tr>}
+              {filteredData.map(d => (
                 <tr key={d._id} className="border-b last:border-0">
                   <td className="py-2.5 font-medium text-foreground">{d.name}</td>
                   <td className="py-2.5 text-primary font-medium">{d.specialization}</td>
@@ -204,7 +353,7 @@ const DoctorsManagement = () => {
             <div>
               <Label>Working Days</Label>
               <div className="flex flex-wrap gap-3 mt-2">
-                {ALL_DAYS.map(day => (
+                {(clinicBounds?.displayDays ?? ALL_DAYS).map(day => (
                   <div key={day} className="flex items-center gap-1.5">
                     <Checkbox id={`day-${day}`} checked={form.workingDays.includes(day)} onCheckedChange={checked => setForm(f => ({ ...f, workingDays: checked ? [...f.workingDays, day] : f.workingDays.filter(d => d !== day) }))} />
                     <label htmlFor={`day-${day}`} className="text-sm cursor-pointer">{day}</label>
@@ -213,8 +362,51 @@ const DoctorsManagement = () => {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Start Time</Label><TimePicker value={form.startTime} onChange={v => setForm(f => ({ ...f, startTime: v }))} placeholder="Start time" /></div>
-              <div><Label>End Time</Label><TimePicker value={form.endTime} onChange={v => setForm(f => ({ ...f, endTime: v }))} placeholder="End time" minTime={form.startTime} /></div>
+              <div>
+                <Label>Start Time</Label>
+                {clinicConstrainedTimes ? (
+                  <Select
+                    value={form.startTime}
+                    onValueChange={v =>
+                      setForm(f => ({
+                        ...f,
+                        startTime: v,
+                        endTime: f.endTime && f.endTime > v ? f.endTime : '',
+                      }))
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <Clock className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+                      <SelectValue placeholder="Start time" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {clinicTimeSlots!.map(t => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <TimePicker value={form.startTime} onChange={v => setForm(f => ({ ...f, startTime: v }))} placeholder="Start time" />
+                )}
+              </div>
+              <div>
+                <Label>End Time</Label>
+                {clinicConstrainedTimes ? (
+                  <Select value={form.endTime} onValueChange={v => setForm(f => ({ ...f, endTime: v }))}>
+                    <SelectTrigger className="w-full">
+                      <Clock className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
+                      <SelectValue placeholder="End time" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      {clinicTimeSlots!.filter(t => !form.startTime || t > form.startTime).map(t => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <TimePicker value={form.endTime} onChange={v => setForm(f => ({ ...f, endTime: v }))} placeholder="End time" minTime={form.startTime} />
+                )}
+              </div>
             </div>
 
             {editing ? (

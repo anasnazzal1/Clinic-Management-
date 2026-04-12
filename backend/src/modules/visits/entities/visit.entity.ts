@@ -5,6 +5,9 @@ export type VisitDocument = Visit & Document;
 
 @Schema({ timestamps: true })
 export class Visit {
+  @Prop({ type: Types.ObjectId, ref: 'Appointment' })
+  appointmentId?: Types.ObjectId;
+
   @Prop({ type: Types.ObjectId, ref: 'Patient', required: true })
   patientId!: Types.ObjectId;
 
@@ -28,6 +31,7 @@ export class Visit {
 }
 
 export const VisitSchema = SchemaFactory.createForClass(Visit);
+VisitSchema.index({ appointmentId: 1 });
 VisitSchema.index({ patientId: 1 });
 VisitSchema.index({ doctorId: 1 });
 VisitSchema.index({ date: 1 });

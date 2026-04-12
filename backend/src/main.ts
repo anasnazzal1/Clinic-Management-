@@ -10,7 +10,11 @@ async function bootstrap() {
 
   // Enable CORS
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:8080',
+      'http://localhost:3000',
+    ],
     credentials: true,
   });
 
@@ -41,7 +45,8 @@ async function bootstrap() {
     .addServer('https://api.example.com', 'Production Server (not yet deployed)')
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document, {
+  // Mount Swagger outside the `api` prefix so it does not shadow REST routes (e.g. GET /api/clinics).
+  SwaggerModule.setup('docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
       displayOperationId: true,
@@ -51,9 +56,9 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
-  console.log(`\n🚀 Application is running on: http://localhost:${port}/api`);
-  console.log(`📚 Swagger documentation available at: http://localhost:${port}/api`);
-  console.log(`📄 OpenAPI JSON available at: http://localhost:${port}/api-json\n`);
+  console.log(`\n🚀 API base URL: http://localhost:${port}/api`);
+  console.log(`📚 Swagger UI: http://localhost:${port}/docs`);
+  console.log(`📄 OpenAPI JSON: http://localhost:${port}/docs-json\n`);
 }
 bootstrap();
 

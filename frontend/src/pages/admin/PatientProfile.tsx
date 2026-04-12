@@ -17,8 +17,8 @@ const PatientProfile = () => {
     if (!id) return;
     Promise.all([
       patientsApi.getOne(id),
-      appointmentsApi.getAll({ patientId: id }),
-      visitsApi.getAll({ patientId: id }),
+      appointmentsApi.getByPatient(id),
+      visitsApi.getByPatient(id),
     ]).then(([p, appts, vis]) => {
       setPatient(p.data);
       const visitsMap = new Map(vis.data.map((v: any) => [v.appointmentId?.toString?.() || v.appointmentId, v]));

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { appointmentsApi, patientsApi, doctorsApi, clinicsApi } from '@/lib/api';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import httpApi, { appointmentsApi, patientsApi, doctorsApi, clinicsApi } from '@/lib/api';
 import { validateCredentials, hasCredentialErrors, type CredentialErrors } from '@/lib/validateCredentials';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,16 +12,74 @@ import { toast } from 'sonner';
 import { DatePicker } from '@/components/ui/date-picker';
 import { TimePicker } from '@/components/ui/time-picker';
 
+const SLOT_CONFLICT_TOAST =
+  'This time slot is already booked for the selected doctor. Please choose a different time.';
+
+function extractApiErrorMessage(err: unknown): string {
+  const data = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data;
+  const m = data?.message;
+  if (Array.isArray(m)) return m.join(' ');
+  return typeof m === 'string' ? m : '';
+}
+
+function isAppointmentTimeSlotConflict(err: unknown): boolean {
+  const res = (err as { response?: { status?: number; data?: { message?: string | string[] } } })?.response;
+  if (!res) return false;
+  const status = res.status ?? 0;
+  const msg = extractApiErrorMessage(err).toLowerCase();
+  if (status === 409) return true;
+  if (msg.includes('already booked') || msg.includes('time slot')) return true;
+  if ((status === 400 || status === 500) && (msg.includes('e11000') || msg.includes('duplicate key'))) return true;
+  return false;
+}
+
 export const ReceptionistDashboard = () => {
   const [appts, setAppts] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+
+  const loadPendingRequests = useCallback(() => {
+    appointmentsApi.getPending().then(r => setPendingRequests(r.data)).catch(() => setPendingRequests([]));
+  }, []);
 
   useEffect(() => {
     appointmentsApi.getAll({ status: 'pending' }).then(r => setAppts(r.data)).catch(() => {});
     patientsApi.getAll().then(r => setPatients(r.data)).catch(() => {});
     doctorsApi.getAll().then(r => setDoctors(r.data)).catch(() => {});
-  }, []);
+    loadPendingRequests();
+  }, [loadPendingRequests]);
+
+  const handleAcceptRequest = async (id: string) => {
+    setPendingActionId(id);
+    try {
+      await appointmentsApi.update(id, { status: 'scheduled' });
+      toast.success('Appointment approved and scheduled.');
+      loadPendingRequests();
+    } catch (err: unknown) {
+      if (isAppointmentTimeSlotConflict(err)) {
+        toast.error(SLOT_CONFLICT_TOAST);
+      } else {
+        toast.error(extractApiErrorMessage(err) || 'Failed to accept request');
+      }
+    } finally {
+      setPendingActionId(null);
+    }
+  };
+
+  const handleDeclineRequest = async (id: string) => {
+    setPendingActionId(id);
+    try {
+      await appointmentsApi.update(id, { status: 'cancelled' });
+      toast.success('Request declined.');
+      loadPendingRequests();
+    } catch (err: unknown) {
+      toast.error(extractApiErrorMessage(err) || 'Failed to decline request');
+    } finally {
+      setPendingActionId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -31,6 +89,64 @@ export const ReceptionistDashboard = () => {
         <Card className="shadow-card"><CardContent className="pt-5 text-center"><div className="font-display text-3xl font-bold text-info">{patients.length}</div><div className="text-xs text-muted-foreground mt-1">Total Patients</div></CardContent></Card>
         <Card className="shadow-card"><CardContent className="pt-5 text-center"><div className="font-display text-3xl font-bold text-success">{doctors.length}</div><div className="text-xs text-muted-foreground mt-1">Doctors Available</div></CardContent></Card>
       </div>
+      <Card className="shadow-card">
+        <CardContent className="pt-6">
+          <h3 className="font-display font-semibold text-foreground mb-4">Pending Requests</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Patient booking requests awaiting your approval.
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-muted-foreground">
+                  <th className="text-left py-2 font-medium">Patient</th>
+                  <th className="text-left py-2 font-medium">Doctor</th>
+                  <th className="text-left py-2 font-medium">Date</th>
+                  <th className="text-left py-2 font-medium">Time</th>
+                  <th className="text-right py-2 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingRequests.map(a => (
+                  <tr key={a._id} className="border-b last:border-0">
+                    <td className="py-2.5 font-medium text-foreground">{a.patientId?.name || '—'}</td>
+                    <td className="py-2.5">{a.doctorId?.name || '—'}</td>
+                    <td className="py-2.5">{a.date || '—'}</td>
+                    <td className="py-2.5">{a.time || '—'}</td>
+                    <td className="py-2.5 text-right space-x-2 whitespace-nowrap">
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="gradient-primary border-0 text-primary-foreground"
+                        disabled={pendingActionId === a._id}
+                        onClick={() => handleAcceptRequest(a._id)}
+                      >
+                        Accept
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={pendingActionId === a._id}
+                        onClick={() => handleDeclineRequest(a._id)}
+                      >
+                        Decline
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+                {pendingRequests.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                      No pending booking requests.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
       <Card className="shadow-card">
         <CardContent className="pt-6">
           <h3 className="font-display font-semibold text-foreground mb-4">Upcoming Appointments</h3>
@@ -76,9 +192,16 @@ export const AddPatientPage = () => {
     setCredErrors(errors);
     if (hasCredentialErrors(errors)) return;
     try {
-      const { data: patient } = await patientsApi.create({ name: form.name, age: Number(form.age), gender: form.gender, phone: form.phone, email: form.email, address: form.address });
-      const { usersApi: ua } = await import('@/lib/api');
-      await ua.register({ username: form.username, password: form.password, role: 'patient', name: form.name, email: form.email, linkedId: patient._id });
+      await patientsApi.create({
+        name: form.name,
+        age: form.age === '' ? undefined : Number(form.age),
+        gender: form.gender,
+        phone: form.phone,
+        email: form.email,
+        address: form.address,
+        username: form.username,
+        password: form.password,
+      });
       toast.success('Patient account created successfully');
       setForm(emptyForm);
       setCredErrors({});
@@ -153,6 +276,13 @@ export const BookAppointmentPage = () => {
   const [patients, setPatients] = useState<any[]>([]);
   const [clinics, setClinics] = useState<any[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
+  const [clinicScheduleLine, setClinicScheduleLine] = useState('');
+  const [bookedTimesForDay, setBookedTimesForDay] = useState<string[]>([]);
+
+  const selectedDoctor = useMemo(
+    () => doctors.find((d: { _id: string }) => String(d._id) === String(form.doctorId)),
+    [doctors, form.doctorId],
+  );
 
   useEffect(() => {
     patientsApi.getAll().then(r => setPatients(r.data)).catch(() => {});
@@ -160,8 +290,65 @@ export const BookAppointmentPage = () => {
   }, []);
 
   useEffect(() => {
-    doctorsApi.getAll({ clinicId: form.clinicId || undefined }).then(r => setDoctors(r.data)).catch(() => {});
+    if (form.clinicId) {
+      doctorsApi.getByClinic(form.clinicId).then(r => setDoctors(r.data)).catch(() => {});
+    } else {
+      doctorsApi.getAll().then(r => setDoctors(r.data)).catch(() => {});
+    }
   }, [form.clinicId]);
+
+  useEffect(() => {
+    if (!form.clinicId) {
+      setClinicScheduleLine('');
+      return;
+    }
+    let cancelled = false;
+    httpApi
+      .get(`/clinics/${form.clinicId}`)
+      .then(res => {
+        if (cancelled) return;
+        const c = (res.data as { data?: { workingDays?: string; workingHours?: string } })?.data;
+        if (c) {
+          setClinicScheduleLine(
+            `Working Days: ${c.workingDays ?? '—'} | Hours: ${c.workingHours ?? '—'}`,
+          );
+        } else setClinicScheduleLine('');
+      })
+      .catch(() => {
+        if (!cancelled) setClinicScheduleLine('');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [form.clinicId]);
+
+  useEffect(() => {
+    if (!form.date || !form.doctorId) {
+      setBookedTimesForDay([]);
+      return;
+    }
+    let cancelled = false;
+    appointmentsApi
+      .getAll()
+      .then(r => {
+        if (cancelled) return;
+        const list = r.data || [];
+        const times = list
+          .filter((a: any) => {
+            const did = a.doctorId?._id ?? a.doctorId;
+            return String(did) === String(form.doctorId) && a.date === form.date && a.status !== 'cancelled' && a.status !== 'deleted';
+          })
+          .map((a: any) => a.time)
+          .filter(Boolean);
+        setBookedTimesForDay([...new Set(times)].sort());
+      })
+      .catch(() => {
+        if (!cancelled) setBookedTimesForDay([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [form.date, form.doctorId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,7 +357,13 @@ export const BookAppointmentPage = () => {
       await appointmentsApi.create({ patientId: form.patientId, doctorId: form.doctorId, clinicId: form.clinicId, date: form.date, time: form.time });
       toast.success('Appointment booked successfully');
       setForm({ patientId: '', clinicId: '', doctorId: '', date: '', time: '' });
-    } catch (err: any) { toast.error(err.response?.data?.message || 'Failed to book appointment'); }
+    } catch (err: unknown) {
+      if (isAppointmentTimeSlotConflict(err)) {
+        toast.error(SLOT_CONFLICT_TOAST);
+      } else {
+        toast.error(extractApiErrorMessage(err) || 'Failed to book appointment');
+      }
+    }
   };
 
   return (
@@ -193,6 +386,9 @@ export const BookAppointmentPage = () => {
                 <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
                 <SelectContent>{clinics.map(c => <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>)}</SelectContent>
               </Select>
+              {clinicScheduleLine ? (
+                <p className="text-xs text-muted-foreground mt-1.5">{clinicScheduleLine}</p>
+              ) : null}
             </div>
             <div>
               <Label>Doctor</Label>
@@ -200,9 +396,24 @@ export const BookAppointmentPage = () => {
                 <SelectTrigger><SelectValue placeholder="Select doctor" /></SelectTrigger>
                 <SelectContent>{doctors.map(d => <SelectItem key={d._id} value={d._id}>{d.name} — {d.specialization}</SelectItem>)}</SelectContent>
               </Select>
+              {selectedDoctor ? (
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Available: {selectedDoctor.workingDays ?? '—'} | Hours: {selectedDoctor.workingHours ?? '—'}
+                </p>
+              ) : null}
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><Label>Date</Label><DatePicker value={form.date} onChange={v => setForm(f => ({ ...f, date: v }))} disabled={d => d < new Date(new Date().setHours(0, 0, 0, 0))} /></div>
+              <div>
+                <Label>Date</Label>
+                <DatePicker value={form.date} onChange={v => setForm(f => ({ ...f, date: v }))} disabled={d => d < new Date(new Date().setHours(0, 0, 0, 0))} />
+                {form.date && form.doctorId ? (
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    {bookedTimesForDay.length === 0
+                      ? 'No other bookings for this doctor on this date.'
+                      : `Booked times: ${bookedTimesForDay.join(', ')}`}
+                  </p>
+                ) : null}
+              </div>
               <div><Label>Time</Label><TimePicker value={form.time} onChange={v => setForm(f => ({ ...f, time: v }))} /></div>
             </div>
             <Button type="submit" className="w-full gradient-primary border-0 text-primary-foreground">Book Appointment</Button>

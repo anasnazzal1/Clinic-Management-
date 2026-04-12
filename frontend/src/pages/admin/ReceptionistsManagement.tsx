@@ -62,8 +62,11 @@ const ReceptionistsManagement = () => {
         }
         toast.success('Receptionist updated');
       } else {
-        const { data: created } = await receptionistsApi.create(payload);
-        await usersApi.register({ username: form.username, password: form.password, role: 'receptionist', name: form.name, email: form.email, linkedId: created._id });
+        const { data: created } = await receptionistsApi.create({
+          ...payload,
+          username: form.username,
+          password: form.password,
+        });
         setData(d => [...d, created]);
         toast.success('Receptionist added');
       }

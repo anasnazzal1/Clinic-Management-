@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, getRolePath } from '@/contexts/AuthContext';
+import { useAuth, getRolePath, type UserRole } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,7 +9,7 @@ import { Stethoscope, AlertCircle, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Login = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,12 +20,12 @@ const Login = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const success = await login(username, password);
+    const success = await login(email.trim(), password);
     if (success) {
-      const stored = JSON.parse(localStorage.getItem('clinicUser')!);
-      navigate(getRolePath(stored.role));
+      const stored = JSON.parse(localStorage.getItem('clinicUser')!) as { role: string };
+      navigate(getRolePath(stored.role as UserRole));
     } else {
-      setError('Invalid username or password');
+      setError('Invalid email or password');
     }
     setLoading(false);
   };
@@ -58,8 +58,8 @@ const Login = () => {
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input id="username" value={username} onChange={e => setUsername(e.target.value)} placeholder="Enter username" required />
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
@@ -70,19 +70,19 @@ const Login = () => {
               </Button>
             </form>
             <div className="mt-6 border-t pt-4">
-              <p className="text-xs text-muted-foreground text-center mb-2">Demo Credentials — click to auto-fill</p>
-              <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground text-center mb-2">Demo logins (use accounts that exist in your database)</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground">
                 {[
-                  { label: 'Admin', u: 'admin', p: 'admin123' },
-                  { label: 'Doctor', u: 'dr.sarah', p: 'doctor123' },
-                  { label: 'Reception', u: 'nancy', p: 'recep123' },
-                  { label: 'Patient', u: 'alice', p: 'patient123' },
+                  { label: 'Admin', u: 'admin@clinic.local', p: 'admin123' },
+                  { label: 'Doctor', u: 'dr.sarah@clinic.local', p: 'doctor123' },
+                  { label: 'Reception', u: 'nancy@clinic.local', p: 'recep123' },
+                  { label: 'Patient', u: 'alice@clinic.local', p: 'patient123' },
                 ].map(cred => (
                   <button
                     key={cred.label}
                     type="button"
                     className="bg-muted rounded-md p-2 text-left hover:bg-accent transition-colors cursor-pointer"
-                    onClick={() => { setUsername(cred.u); setPassword(cred.p); setError(''); }}
+                    onClick={() => { setEmail(cred.u); setPassword(cred.p); setError(''); }}
                   >
                     <span className="font-medium text-foreground">{cred.label}:</span> {cred.u} / {cred.p}
                   </button>

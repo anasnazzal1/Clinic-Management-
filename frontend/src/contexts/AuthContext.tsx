@@ -14,26 +14,55 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+function normalizeStoredUser(raw: unknown): User | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const u = raw as Record<string, unknown>;
+  const id = u.id ?? u._id;
+  if (typeof u.role !== 'string' || id == null) return null;
+  return {
+    id: String(id),
+    username: String(u.username ?? ''),
+    role: u.role as UserRole,
+    name: String(u.name ?? ''),
+    email: String(u.email ?? ''),
+    linkedId: u.linkedId != null ? String(u.linkedId) : undefined,
+  };
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
     const stored = localStorage.getItem('clinicUser');
-    if (stored) { try { return JSON.parse(stored); } catch { return null; } }
-    return null;
+    if (!stored) return null;
+    try {
+      return normalizeStoredUser(JSON.parse(stored));
+    } catch {
+      return null;
+    }
   });
 
-  const login = useCallback(async (username: string, password: string): Promise<boolean> => {
+  const login = useCallback(async (email: string, password: string): Promise<boolean> => {
     try {
-      const { data } = await authApi.login(username, password);
-      localStorage.setItem('token', data.access_token);
-      localStorage.setItem('clinicUser', JSON.stringify(data.user));
-      setUser(data.user);
+      const { data } = await authApi.login(email, password);
+      if (!data?.accessToken || !data.user) return false;
+      const u = data.user as Record<string, unknown>;
+      const normalized: User = {
+        id: String(u._id ?? u.id ?? ''),
+        username: String(u.username ?? ''),
+        role: u.role as UserRole,
+        name: String(u.name ?? ''),
+        email: String(u.email ?? ''),
+        linkedId: u.linkedId != null ? String(u.linkedId) : undefined,
+      };
+      localStorage.setItem('token', data.accessToken);
+      localStorage.setItem('clinicUser', JSON.stringify(normalized));
+      setUser(normalized);
       return true;
     } catch {
       return false;

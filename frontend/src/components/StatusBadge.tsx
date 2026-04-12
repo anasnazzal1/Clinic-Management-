@@ -1,12 +1,23 @@
 import { cn } from '@/lib/utils';
 
-export type AppointmentStatus = 'pending' | 'completed' | 'cancelled' | 'deleted';
+export type AppointmentStatus =
+  | 'pending'
+  | 'pending_approval'
+  | 'scheduled'
+  | 'completed'
+  | 'cancelled'
+  | 'deleted';
 
 const statusConfig: Record<AppointmentStatus, { label: string; className: string }> = {
-  pending:   { label: 'Pending',   className: 'bg-warning/15 text-warning border-warning/20' },
+  pending: { label: 'Pending', className: 'bg-warning/15 text-warning border-warning/20' },
+  pending_approval: {
+    label: 'Pending approval',
+    className: 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/25',
+  },
+  scheduled: { label: 'Scheduled', className: 'bg-info/15 text-info border-info/20' },
   completed: { label: 'Completed', className: 'bg-success/15 text-success border-success/20' },
   cancelled: { label: 'Cancelled', className: 'bg-destructive/15 text-destructive border-destructive/20' },
-  deleted:   { label: 'Deleted',   className: 'bg-muted text-muted-foreground border-border' },
+  deleted: { label: 'Deleted', className: 'bg-muted text-muted-foreground border-border' },
 };
 
 const fallback = statusConfig.pending;

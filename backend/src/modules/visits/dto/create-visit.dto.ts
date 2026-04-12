@@ -2,6 +2,11 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsMongoId, IsOptional } from 'class-validator';
 
 export class CreateVisitDto {
+  @ApiProperty({ description: 'Related appointment ID (optional)', example: '507f1f77bcf86cd799439011', required: false })
+  @IsOptional()
+  @IsMongoId()
+  appointmentId?: string;
+
   @ApiProperty({ description: 'Patient ID', example: '507f1f77bcf86cd799439011' })
   @IsMongoId()
   patientId!: string;
