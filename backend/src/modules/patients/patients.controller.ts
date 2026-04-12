@@ -50,7 +50,7 @@ export class PatientsController {
 
   @Get(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles([UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.PATIENT])
+  @Roles([UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.PATIENT,UserRole.DOCTOR])
   @ApiOperation({ summary: 'Get patient by ID', description: 'Fetch patient details by ID' })
   @ApiParam({ name: 'id', description: 'Patient ID', example: '507f1f77bcf86cd799439011' })
   @ApiResponse({ status: 200, description: 'Patient found', type: Patient })

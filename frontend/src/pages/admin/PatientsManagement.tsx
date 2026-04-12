@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { patientsApi, usersApi } from '@/lib/api';
 import { validateCredentials, hasCredentialErrors, type CredentialErrors } from '@/lib/validateCredentials';
@@ -24,8 +24,14 @@ const PatientsManagement = () => {
   const [credErrors, setCredErrors] = useState<CredentialErrors>({});
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
 
-  const load = () => patientsApi.getAll(search || undefined).then(r => setData(r.data)).catch(() => {});
-  useEffect(() => { load(); }, [search]);
+  const load = () => patientsApi.getAll().then(r => setData(r.data)).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const filteredData = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return data;
+    return data.filter((p: { name?: string }) => (p.name ?? '').toLowerCase().includes(q));
+  }, [data, search]);
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setCredErrors({}); setOpen(true); };
   const openEdit = async (p: any) => {
@@ -65,8 +71,11 @@ const PatientsManagement = () => {
         }
         toast.success('Patient updated');
       } else {
-        const { data: created } = await patientsApi.create(payload);
-        await usersApi.register({ username: form.username, password: form.password, role: 'patient', name: form.name, email: form.email, linkedId: created._id });
+        const { data: created } = await patientsApi.create({
+          ...payload,
+          username: form.username,
+          password: form.password,
+        });
         setData(d => [...d, created]);
         toast.success('Patient added');
       }
@@ -103,8 +112,8 @@ const PatientsManagement = () => {
           <table className="w-full text-sm">
             <thead><tr className="border-b text-muted-foreground"><th className="text-left py-2 font-medium">Name</th><th className="text-left py-2 font-medium">Age</th><th className="text-left py-2 font-medium hidden md:table-cell">Gender</th><th className="text-left py-2 font-medium hidden md:table-cell">Phone</th><th className="text-right py-2 font-medium">Actions</th></tr></thead>
             <tbody>
-              {data.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">No patients found.</td></tr>}
-              {data.map(p => (
+              {filteredData.length === 0 && <tr><td colSpan={5} className="py-8 text-center text-muted-foreground">No patients found.</td></tr>}
+              {filteredData.map(p => (
                 <tr key={p._id} className="border-b last:border-0">
                   <td className="py-2.5 font-medium text-foreground">{p.name}</td>
                   <td className="py-2.5 text-muted-foreground">{p.age}</td>

@@ -54,15 +54,28 @@ export class DoctorsService {
   }
 
   async findAll(): Promise<Doctor[]> {
-    return this.doctorModel.find().exec();
+    return this.doctorModel
+      .find()
+      .populate('clinicId', 'name workingDays workingHours')
+      .exec();
   }
 
   async findOne(id: string): Promise<Doctor> {
-    const doctor = await this.doctorModel.findById(id).exec();
+    const doctor = await this.doctorModel
+      .findById(id)
+      .populate('clinicId', 'name workingDays workingHours')
+      .exec();
     if (!doctor) {
       throw new NotFoundException('Doctor not found');
     }
     return doctor;
+  }
+
+  async findByClinic(clinicId: string): Promise<Doctor[]> {
+    return this.doctorModel
+      .find({ clinicId: new Types.ObjectId(clinicId) })
+      .populate('clinicId', 'name workingDays workingHours')
+      .exec();
   }
 
   async update(id: string, updateDoctorDto: UpdateDoctorDto): Promise<Doctor> {

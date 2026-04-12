@@ -32,10 +32,12 @@ export class AuthService {
     // Hash password
     const passwordHash = await bcrypt.hash(registerDto.password, 10);
 
-    // Create new user (patients register themselves)
+    // Create new user (patients register themselves). Username is required on User; use email as stable unique handle.
+    const emailLower = registerDto.email.toLowerCase();
     const newUser = await this.userModel.create({
+      username: emailLower,
       name: registerDto.name,
-      email: registerDto.email.toLowerCase(),
+      email: emailLower,
       passwordHash,
       phone: registerDto.phone || '',
       role: 'patient',
@@ -74,10 +76,11 @@ export class AuthService {
 
     // Generate JWT token
     const payload = {
-      sub: user._id,
+      sub: user._id.toString(),
       email: user.email,
       role: user.role,
       name: user.name,
+      linkedId: user.linkedId != null ? String(user.linkedId) : undefined,
     };
 
     const accessToken = this.jwtService.sign(payload);

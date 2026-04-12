@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { clinicsApi } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -45,9 +45,15 @@ const ClinicsManagement = () => {
   const [form, setForm] = useState(emptyForm);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
 
-  const load = () => clinicsApi.getAll(search || undefined).then(r => setData(r.data)).catch(() => {});
+  const load = () => clinicsApi.getAll().then(r => setData(r.data)).catch(() => {});
 
-  useEffect(() => { load(); }, [search]);
+  useEffect(() => { load(); }, []);
+
+  const filteredData = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return data;
+    return data.filter((c: { name?: string }) => (c.name ?? '').toLowerCase().includes(q));
+  }, [data, search]);
 
   const openAdd = () => { setEditing(null); setForm(emptyForm); setOpen(true); };
   const openEdit = (c: any) => {
@@ -107,8 +113,8 @@ const ClinicsManagement = () => {
           <table className="w-full text-sm">
             <thead><tr className="border-b text-muted-foreground"><th className="text-left py-2 font-medium">Department / Specialty</th><th className="text-left py-2 font-medium hidden md:table-cell">Working Days</th><th className="text-left py-2 font-medium hidden lg:table-cell">Hours</th><th className="text-right py-2 font-medium">Actions</th></tr></thead>
             <tbody>
-              {data.length === 0 && <tr><td colSpan={4} className="py-8 text-center text-muted-foreground">No departments found.</td></tr>}
-              {data.map(c => (
+              {filteredData.length === 0 && <tr><td colSpan={4} className="py-8 text-center text-muted-foreground">No departments found.</td></tr>}
+              {filteredData.map(c => (
                 <tr key={c._id} className="border-b last:border-0">
                   <td className="py-2.5 font-medium text-foreground">{c.name}</td>
                   <td className="py-2.5 hidden md:table-cell text-muted-foreground">{c.workingDays}</td>

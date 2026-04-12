@@ -29,6 +29,14 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/constants/roles.constant';
 
+function refToIdString(ref: unknown): string {
+  if (ref == null) return '';
+  if (typeof ref === 'object' && ref !== null && '_id' in ref) {
+    return String((ref as { _id: unknown })._id);
+  }
+  return String(ref);
+}
+
 @Controller('appointments')
 @ApiTags('Appointments')
 export class AppointmentsController {
@@ -86,6 +94,23 @@ export class AppointmentsController {
     };
   }
 
+  @Get('pending')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles([UserRole.ADMIN, UserRole.RECEPTIONIST])
+  @ApiOperation({
+    summary: 'Appointments pending approval',
+    description: 'Lists patient-submitted appointments awaiting receptionist or admin approval.',
+  })
+  @ApiResponse({ status: 200, description: 'Pending approval appointments returned', type: [Appointment] })
+  async findPendingApproval() {
+    const appointments = await this.appointmentsService.findPendingApproval();
+    return {
+      success: true,
+      data: appointments,
+      message: 'Pending approval appointments retrieved successfully',
+    };
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles([UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.DOCTOR, UserRole.PATIENT])
@@ -95,10 +120,12 @@ export class AppointmentsController {
   async findOne(@Param('id') id: string, @Req() req: Request & { user?: { role?: string; linkedId?: string } }) {
     const appointment = await this.appointmentsService.findOne(id);
     const user = req.user;
-    if (user?.role === UserRole.DOCTOR && user.linkedId !== appointment.doctorId.toString()) {
+    const doctorIdStr = refToIdString(appointment.doctorId);
+    const patientIdStr = refToIdString(appointment.patientId);
+    if (user?.role === UserRole.DOCTOR && user.linkedId !== doctorIdStr) {
       throw new ForbiddenException('Doctors can only access their own appointments');
     }
-    if (user?.role === UserRole.PATIENT && user.linkedId !== appointment.patientId.toString()) {
+    if (user?.role === UserRole.PATIENT && user.linkedId !== patientIdStr) {
       throw new ForbiddenException('Patients can only access their own appointments');
     }
     return {
@@ -110,13 +137,19 @@ export class AppointmentsController {
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles([UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.PATIENT])
+  @Roles([UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.PATIENT, UserRole.DOCTOR])
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create appointment', description: 'Create a new appointment' })
   @ApiBody({ type: CreateAppointmentDto })
   @ApiResponse({ status: 201, description: 'Appointment created', type: Appointment })
-  async create(@Body() createAppointmentDto: CreateAppointmentDto) {
-    const appointment = await this.appointmentsService.create(createAppointmentDto);
+  async create(
+    @Body() createAppointmentDto: CreateAppointmentDto,
+    @Req() req: Request & { user?: { role?: string } },
+  ) {
+    const appointment = await this.appointmentsService.create(
+      createAppointmentDto,
+      req.user?.role === UserRole.PATIENT,
+    );
     return {
       success: true,
       data: appointment,
@@ -134,7 +167,7 @@ export class AppointmentsController {
   async update(@Param('id') id: string, @Body() updateAppointmentDto: UpdateAppointmentDto, @Req() req: Request & { user?: { role?: string; linkedId?: string } }) {
     const appointment = await this.appointmentsService.findOne(id);
     const user = req.user;
-    if (user?.role === UserRole.DOCTOR && user.linkedId !== appointment.doctorId.toString()) {
+    if (user?.role === UserRole.DOCTOR && user.linkedId !== refToIdString(appointment.doctorId)) {
       throw new ForbiddenException('Doctors can only update their own appointments');
     }
     const updatedAppointment = await this.appointmentsService.update(id, updateAppointmentDto);

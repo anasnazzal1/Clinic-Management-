@@ -21,6 +21,26 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+/** Patient **record** id from appointment (populated `patientId._id` or raw ObjectId string), never the logged-in user id. */
+function patientRecordIdFromAppointment(appt: { patientId?: unknown }): string | undefined {
+  const ref = appt?.patientId;
+  if (ref == null) return undefined;
+  if (typeof ref === 'object' && ref !== null && '_id' in ref) {
+    return String((ref as { _id: unknown })._id);
+  }
+  return String(ref);
+}
+
+/** Doctor **record** id from appointment. */
+function doctorRecordIdFromAppointment(appt: { doctorId?: unknown }): string | undefined {
+  const ref = appt?.doctorId;
+  if (ref == null) return undefined;
+  if (typeof ref === 'object' && ref !== null && '_id' in ref) {
+    return String((ref as { _id: unknown })._id);
+  }
+  return String(ref);
+}
+
 // ── Dashboard ─────────────────────────────────────────────────────────────────
 export const DoctorDashboard = () => {
   const { user } = useAuth();
@@ -32,7 +52,10 @@ export const DoctorDashboard = () => {
   const [patientVisits, setPatientVisits]       = useState<any[]>([]);
 
   useEffect(() => {
-    appointmentsApi.getAll().then(r => {
+    const listReq = user?.linkedId
+      ? appointmentsApi.getByDoctor(user.linkedId)
+      : appointmentsApi.getAll();
+    listReq.then(r => {
       const data: any[] = r.data;
       setAppts(data);
       // Derive unique patients from appointments
@@ -47,7 +70,7 @@ export const DoctorDashboard = () => {
       });
       setPatients(unique);
     }).catch(() => {});
-  }, []);
+  }, [user?.linkedId]);
 
   const q = search.toLowerCase().trim();
   const filteredPatients = q
@@ -62,7 +85,7 @@ export const DoctorDashboard = () => {
     try {
       const [p, v] = await Promise.all([
         patientsApi.getOne(patientId),
-        visitsApi.getAll({ patientId }),
+        visitsApi.getByPatient(patientId),
       ]);
       setSelectedPatient(p.data);
       setPatientVisits(v.data);
@@ -263,7 +286,10 @@ export const DoctorAppointmentsPage = () => {
 
   // Load appointments + doctor info
   useEffect(() => {
-    appointmentsApi.getAll().then(r => setAppts(r.data)).catch(() => {});
+    const listReq = user?.linkedId
+      ? appointmentsApi.getByDoctor(user.linkedId)
+      : appointmentsApi.getAll();
+    listReq.then(r => setAppts(r.data)).catch(() => {});
     if (user?.linkedId) {
       doctorsApi.getAll().then(r => {
         const me = r.data.find((d: any) => d._id === user.linkedId);
@@ -273,33 +299,47 @@ export const DoctorAppointmentsPage = () => {
   }, [user?.linkedId]);
 
   // ── Visit notes ─────────────────────────────────────────────────────────────
-  const openVisit = (a: any) => {
+  const openVisit = async (a: any) => {
     setSelectedAppt(a);
-    setVisitForm({ notes: a.notes || '', diagnosis: a.diagnosis || '' });
+    if (a.status === 'completed') {
+      try {
+        const { data: visit } = await visitsApi.getByAppointment(String(a._id));
+        setVisitForm({
+          notes: visit?.notes ?? '',
+          diagnosis: visit?.diagnosis ?? '',
+        });
+      } catch {
+        toast.error('Could not load visit notes.');
+        setVisitForm({ notes: '', diagnosis: '' });
+      }
+    } else {
+      setVisitForm({ notes: a.notes || '', diagnosis: a.diagnosis || '' });
+    }
     setVisitOpen(true);
   };
 
   const handleSaveVisit = async () => {
     if (!selectedAppt) return;
+    const patientRecordId = patientRecordIdFromAppointment(selectedAppt);
+    const doctorRecordId = doctorRecordIdFromAppointment(selectedAppt);
+    if (!patientRecordId || !doctorRecordId) {
+      toast.error('Appointment is missing patient or doctor.');
+      return;
+    }
+    const today = new Date().toISOString().split('T')[0];
     setSavingVisit(true);
     try {
-      await appointmentsApi.update(selectedAppt._id, {
-        status: 'completed',
-        notes: visitForm.notes,
-        diagnosis: visitForm.diagnosis,
-      });
+      await appointmentsApi.update(selectedAppt._id, { status: 'completed' });
       await visitsApi.create({
-        appointmentId: selectedAppt._id,
-        patientId: selectedAppt.patientId?._id || selectedAppt.patientId,
-        doctorId: user?.linkedId,
-        date: new Date().toISOString().split('T')[0],
-        notes: visitForm.notes,
+        appointmentId: String(selectedAppt._id),
+        patientId: patientRecordId,
+        doctorId: doctorRecordId,
+        date: today,
         diagnosis: visitForm.diagnosis,
+        notes: visitForm.notes,
       });
       setAppts(prev => prev.map(a =>
-        a._id === selectedAppt._id
-          ? { ...a, status: 'completed', notes: visitForm.notes, diagnosis: visitForm.diagnosis }
-          : a
+        a._id === selectedAppt._id ? { ...a, status: 'completed' } : a
       ));
       toast.success('Visit saved — appointment marked as completed.');
       setVisitOpen(false);
@@ -331,7 +371,7 @@ export const DoctorAppointmentsPage = () => {
     try {
       const [p, v] = await Promise.all([
         patientsApi.getOne(patientId),
-        visitsApi.getAll({ patientId }),
+        visitsApi.getByPatient(patientId),
       ]);
       setSelectedPatient(p.data);
       setPatientVisits(v.data);
@@ -492,7 +532,11 @@ export const DoctorAppointmentsPage = () => {
                 >
                   <td className="py-2.5">
                     <button
-                      onClick={() => openPatient(a.patientId?._id || a.patientId)}
+                      onClick={() => {
+                        const pid = patientRecordIdFromAppointment(a);
+                        if (pid) openPatient(pid);
+                        else toast.error('No patient record on this appointment.');
+                      }}
                       className="font-medium text-primary hover:underline flex items-center gap-1"
                     >
                       <User className="w-3.5 h-3.5" />

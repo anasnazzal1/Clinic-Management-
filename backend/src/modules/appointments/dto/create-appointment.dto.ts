@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsMongoId, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsMongoId, IsEnum, IsOptional } from 'class-validator';
 import { AppointmentStatus } from '../entities/appointment.entity';
 
 export class CreateAppointmentDto {
@@ -25,7 +25,13 @@ export class CreateAppointmentDto {
   @IsNotEmpty()
   time!: string;
 
-  @ApiProperty({ description: 'Appointment status', example: 'pending', enum: AppointmentStatus, required: false })
+  @ApiProperty({
+    description: 'Appointment status (ignored for patient creates — server sets pending_approval)',
+    example: 'pending',
+    enum: AppointmentStatus,
+    required: false,
+  })
+  @IsOptional()
   @IsEnum(AppointmentStatus)
-  status!: AppointmentStatus;
+  status?: AppointmentStatus;
 }

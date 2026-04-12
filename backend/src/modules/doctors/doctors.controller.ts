@@ -43,6 +43,22 @@ export class DoctorsController {
     };
   }
 
+  @Get('clinic/:clinicId')
+  @ApiOperation({
+    summary: 'Get doctors by clinic',
+    description: 'Retrieve all doctors working at a specific clinic. Public endpoint.'
+  })
+  @ApiParam({ name: 'clinicId', description: 'Clinic ID', example: '507f1f77bcf86cd799439011' })
+  @ApiResponse({ status: 200, description: 'List of clinic doctors' })
+  async findByClinic(@Param('clinicId') clinicId: string) {
+    const doctors = await this.doctorsService.findByClinic(clinicId);
+    return {
+      success: true,
+      data: doctors,
+      message: 'Clinic doctors retrieved successfully',
+    };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get doctor by ID', description: 'Fetch doctor details by ID' })
   @ApiParam({ name: 'id', description: 'Doctor ID', example: '507f1f77bcf86cd799439011' })

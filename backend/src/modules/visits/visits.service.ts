@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Visit, VisitDocument } from './entities/visit.entity';
 import { CreateVisitDto } from './dto/create-visit.dto';
 import { UpdateVisitDto } from './dto/update-visit.dto';
+import { UserRole } from '../../common/constants/roles.constant';
 
 @Injectable()
 export class VisitsService {
@@ -11,6 +12,9 @@ export class VisitsService {
 
   async create(createVisitDto: CreateVisitDto): Promise<Visit> {
     const visit = new this.visitModel({
+      ...(createVisitDto.appointmentId && {
+        appointmentId: new Types.ObjectId(createVisitDto.appointmentId),
+      }),
       patientId: new Types.ObjectId(createVisitDto.patientId),
       doctorId: new Types.ObjectId(createVisitDto.doctorId),
       date: createVisitDto.date,
@@ -22,17 +26,79 @@ export class VisitsService {
   }
 
   async findAll(): Promise<Visit[]> {
-    return this.visitModel.find().exec();
+    return this.visitModel
+      .find()
+      .populate('patientId', 'name email phone')
+      .populate('doctorId', 'name specialization email phone')
+      .exec();
   }
 
   async findOne(id: string): Promise<Visit> {
-    const visit = await this.visitModel.findById(id).exec();
+    const visit = await this.visitModel
+      .findById(id)
+      .populate('patientId', 'name email phone')
+      .populate('doctorId', 'name specialization email phone')
+      .exec();
     if (!visit) {
       throw new NotFoundException('Visit not found');
     }
     return visit;
   }
+  async findByAppointment(appointmentId: string): Promise<Visit> {
+    const visit = await this.visitModel
+      .findOne({ appointmentId: new Types.ObjectId(appointmentId) })
+      .populate('patientId', 'name email phone')
+      .populate('doctorId', 'name specialization email phone')
+      .exec();
+    if (!visit) {
+      throw new NotFoundException('Visit not found for this appointment');
+    }
+    return visit;
+  }
 
+  async findByPatient(
+    patientId: string,
+    userRole?: string,
+    userLinkedId?: string,
+  ): Promise<Visit[]> {
+    const query: Record<string, unknown> = {
+      patientId: new Types.ObjectId(patientId),
+    };
+
+    if (userRole === UserRole.DOCTOR && userLinkedId) {
+      query.doctorId = new Types.ObjectId(userLinkedId);
+    }
+
+    const visits = await this.visitModel
+      .find(query)
+      .populate('patientId', 'name email phone')
+      .populate('doctorId', 'name specialization email phone')
+      .sort({ date: -1 })
+      .exec();
+    return visits;
+  }
+
+  async findByDoctor(
+    doctorId: string,
+    userRole?: string,
+    userLinkedId?: string,
+  ): Promise<Visit[]> {
+    if (userRole === UserRole.DOCTOR && userLinkedId !== doctorId) {
+      throw new ForbiddenException('Doctors can only access their own visits');
+    }
+
+    const query: Record<string, unknown> = {
+      doctorId: new Types.ObjectId(doctorId),
+    };
+
+    const visits = await this.visitModel
+      .find(query)
+      .populate('patientId', 'name email phone')
+      .populate('doctorId', 'name specialization email phone')
+      .sort({ date: -1 })
+      .exec();
+    return visits;
+  }
   async update(id: string, updateVisitDto: UpdateVisitDto): Promise<Visit> {
     const visit = await this.visitModel.findByIdAndUpdate(
       id,

@@ -90,39 +90,6 @@ export class UsersController {
     };
   }
 
-  @Get(':id')
-  @Roles([UserRole.ADMIN])
-  @ApiOperation({
-    summary: 'Get user by ID',
-    description: 'Admin only endpoint to retrieve a specific user by their ID.',
-  })
-  @ApiParam({
-    name: 'id',
-    description: 'User MongoDB ID',
-    example: '507f1f77bcf86cd799439011',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'User retrieved successfully',
-    type: UserDto,
-  })
-  @ApiResponse({
-    status: 403,
-    description: 'Forbidden - only admin can view users',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'User not found',
-  })
-  async findById(@Param('id') id: string) {
-    const user = await this.usersService.findById(id);
-    return {
-      success: true,
-      data: user,
-      message: 'User retrieved successfully',
-    };
-  }
-
   @Get('email/:email')
   @Roles([UserRole.ADMIN])
   @ApiOperation({
@@ -182,6 +149,39 @@ export class UsersController {
   })
   async findByLinkedId(@Param('linkedId') linkedId: string) {
     const user = await this.usersService.findByLinkedId(linkedId);
+    return {
+      success: true,
+      data: user,
+      message: 'User retrieved successfully',
+    };
+  }
+
+  @Get(':id')
+  @Roles([UserRole.ADMIN])
+  @ApiOperation({
+    summary: 'Get user by ID',
+    description: 'Admin only endpoint to retrieve a specific user by their ID.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'User MongoDB ID',
+    example: '507f1f77bcf86cd799439011',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User retrieved successfully',
+    type: UserDto,
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - only admin can view users',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  async findById(@Param('id') id: string) {
+    const user = await this.usersService.findById(id);
     return {
       success: true,
       data: user,
