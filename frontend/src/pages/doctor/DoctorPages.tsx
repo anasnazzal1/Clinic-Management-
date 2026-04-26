@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { appointmentsApi, doctorsApi } from '@/lib/api';
+import { appointmentsApi, doctorsApi, patientsApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,25 +31,13 @@ export const DoctorDashboard = () => {
       : appointmentsApi.getAll();
 
     listReq
-      .then((r) => {
-        const data: any[] = r.data;
-        setAppts(data);
+      .then((r) => setAppts(r.data))
+      .catch(() => toast.error('Unable to load appointments.'));
 
-        const seen = new Set<string>();
-        const unique: any[] = [];
-        data.forEach((a) => {
-          const patient = a.patientId;
-          const id = patient?._id ?? patient;
-          if (id && !seen.has(id)) {
-            seen.add(id);
-            unique.push(patient);
-          }
-        });
-        setPatients(unique);
-      })
-      .catch(() => {
-        toast.error('Unable to load appointments.');
-      });
+    // Fetch only this doctor's patients from the scoped backend endpoint
+    patientsApi.getMy()
+      .then((r) => setPatients(r.data))
+      .catch(() => {});
   }, [user?.linkedId]);
 
   const filteredPatients = search.trim()
@@ -137,7 +125,7 @@ export const DoctorDashboard = () => {
               {filteredPatients.map((p) => (
                 <button
                   key={p._id ?? p}
-                  onClick={() => navigate(`/patients/${p._id ?? p}`)}
+                  onClick={() => navigate(`/doctor/patients/${p._id ?? p}`)}
                   className="w-full flex items-center gap-3 py-2.5 text-left hover:bg-muted/40 rounded-lg px-2 transition-colors group"
                 >
                   <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center shrink-0">

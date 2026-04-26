@@ -45,10 +45,10 @@ export class VisitsController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles([UserRole.ADMIN, UserRole.DOCTOR])
-  @ApiOperation({ summary: 'Get all visits', description: 'Fetch all visit records' })
+  @ApiOperation({ summary: 'Get all visits', description: 'Admin: all visits. Doctor: own visits only.' })
   @ApiResponse({ status: 200, description: 'Visits list returned', type: [Visit] })
-  async findAll() {
-    const visits = await this.visitsService.findAll();
+  async findAll(@Req() req: Request & { user?: { role?: string; linkedId?: string } }) {
+    const visits = await this.visitsService.findAll(req.user?.role, req.user?.linkedId);
     return {
       success: true,
       data: visits,

@@ -35,23 +35,17 @@ export class CreateVisitDto {
   @IsString()
   notes?: string;
 
-<<<<<<< HEAD
-  @ApiProperty({ description: 'Prescription', example: 'Cetirizine 10mg once daily for 7 days', required: false })
+  @ApiProperty({ description: 'Prescription details', example: 'Cetirizine 10mg once daily for 7 days', required: false })
   @IsOptional()
   @IsString()
   prescription?: string;
 
-  @ApiProperty({ description: 'Follow-up date', example: '2026-05-15', required: false })
-  @IsOptional()
-  @IsString()
-  followUpDate?: string;
-=======
   @ApiProperty({ description: 'Follow-up date (YYYY-MM-DD)', example: '2026-06-01', required: false })
   @IsOptional()
   @IsString()
   followUpDate?: string;
 
-  @ApiProperty({ description: 'Additional remarks', example: 'Patient advised to avoid allergens', required: false })
+  @ApiProperty({ description: 'Additional remarks', required: false })
   @IsOptional()
   @IsString()
   remarks?: string;
@@ -93,5 +87,4 @@ export class CreateVisitDto {
   @IsOptional()
   @IsString()
   medicalAlerts?: string;
->>>>>>> b325177 (add some update)
 }

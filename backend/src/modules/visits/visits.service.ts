@@ -15,35 +15,43 @@ export class VisitsService {
       ...(createVisitDto.appointmentId && {
         appointmentId: new Types.ObjectId(createVisitDto.appointmentId),
       }),
-      patientId: new Types.ObjectId(createVisitDto.patientId),
-      doctorId: new Types.ObjectId(createVisitDto.doctorId),
-      date: createVisitDto.date,
-      diagnosis: createVisitDto.diagnosis,
-      treatment: createVisitDto.treatment,
-      notes: createVisitDto.notes,
-<<<<<<< HEAD
-      prescription: createVisitDto.prescription,
-      followUpDate: createVisitDto.followUpDate,
-=======
-      followUpDate: createVisitDto.followUpDate,
-      remarks: createVisitDto.remarks,
-      improvementStatus: createVisitDto.improvementStatus,
-      treatmentDuration: createVisitDto.treatmentDuration,
-      clinicalObservations: createVisitDto.clinicalObservations,
-      followUpActions: createVisitDto.followUpActions,
-      caseStatus: createVisitDto.caseStatus,
-      medicalAlerts: createVisitDto.medicalAlerts,
->>>>>>> b325177 (add some update)
+      patientId:           new Types.ObjectId(createVisitDto.patientId),
+      doctorId:            new Types.ObjectId(createVisitDto.doctorId),
+      date:                createVisitDto.date,
+      diagnosis:           createVisitDto.diagnosis,
+      treatment:           createVisitDto.treatment,
+      notes:               createVisitDto.notes,
+      prescription:        createVisitDto.prescription,
+      followUpDate:        createVisitDto.followUpDate,
+      remarks:             createVisitDto.remarks,
+      improvementStatus:   createVisitDto.improvementStatus,
+      treatmentDuration:   createVisitDto.treatmentDuration,
+      clinicalObservations:createVisitDto.clinicalObservations,
+      followUpActions:     createVisitDto.followUpActions,
+      caseStatus:          createVisitDto.caseStatus,
+      medicalAlerts:       createVisitDto.medicalAlerts,
     });
 
     return visit.save();
   }
 
-  async findAll(): Promise<Visit[]> {
+  /**
+   * Admin → all visits.
+   * Doctor → only their own visits (doctorId filter enforced here).
+   */
+  async findAll(callerRole?: string, callerLinkedId?: string): Promise<Visit[]> {
+    const query: Record<string, unknown> = {};
+
+    if (callerRole === UserRole.DOCTOR) {
+      if (!callerLinkedId) throw new ForbiddenException('Doctor identity could not be resolved');
+      query.doctorId = new Types.ObjectId(callerLinkedId);
+    }
+
     return this.visitModel
-      .find()
+      .find(query)
       .populate('patientId', 'name email phone')
       .populate('doctorId', 'name specialization email phone')
+      .sort({ date: -1 })
       .exec();
   }
 
@@ -53,90 +61,87 @@ export class VisitsService {
       .populate('patientId', 'name email phone')
       .populate('doctorId', 'name specialization email phone')
       .exec();
-    if (!visit) {
-      throw new NotFoundException('Visit not found');
-    }
+    if (!visit) throw new NotFoundException('Visit not found');
     return visit;
   }
+
   async findByAppointment(appointmentId: string): Promise<Visit> {
     const visit = await this.visitModel
       .findOne({ appointmentId: new Types.ObjectId(appointmentId) })
       .populate('patientId', 'name email phone')
       .populate('doctorId', 'name specialization email phone')
       .exec();
-    if (!visit) {
-      throw new NotFoundException('Visit not found for this appointment');
-    }
+    if (!visit) throw new NotFoundException('Visit not found for this appointment');
     return visit;
   }
 
+  /**
+   * Returns visits for a patient.
+   * Doctor → scoped to their own visits for that patient.
+   * Patient → all their own visits (across doctors).
+   * Admin → all visits for that patient.
+   */
   async findByPatient(
     patientId: string,
-    userRole?: string,
-    userLinkedId?: string,
+    callerRole?: string,
+    callerLinkedId?: string,
   ): Promise<Visit[]> {
     const query: Record<string, unknown> = {
       patientId: new Types.ObjectId(patientId),
     };
 
-    if (userRole === UserRole.DOCTOR && userLinkedId) {
-      query.doctorId = new Types.ObjectId(userLinkedId);
+    if (callerRole === UserRole.DOCTOR && callerLinkedId) {
+      query.doctorId = new Types.ObjectId(callerLinkedId);
     }
 
-    const visits = await this.visitModel
+    return this.visitModel
       .find(query)
       .populate('patientId', 'name email phone')
       .populate('doctorId', 'name specialization email phone')
       .sort({ date: -1 })
       .exec();
-    return visits;
   }
 
+  /**
+   * Returns visits for a doctor.
+   * Doctor → can only fetch their own (enforced).
+   * Admin → can fetch any doctor's visits.
+   */
   async findByDoctor(
     doctorId: string,
-    userRole?: string,
-    userLinkedId?: string,
+    callerRole?: string,
+    callerLinkedId?: string,
   ): Promise<Visit[]> {
-    if (userRole === UserRole.DOCTOR && userLinkedId !== doctorId) {
+    if (callerRole === UserRole.DOCTOR && callerLinkedId !== doctorId) {
       throw new ForbiddenException('Doctors can only access their own visits');
     }
 
-    const query: Record<string, unknown> = {
-      doctorId: new Types.ObjectId(doctorId),
-    };
-
-    const visits = await this.visitModel
-      .find(query)
+    return this.visitModel
+      .find({ doctorId: new Types.ObjectId(doctorId) })
       .populate('patientId', 'name email phone')
       .populate('doctorId', 'name specialization email phone')
       .sort({ date: -1 })
       .exec();
-    return visits;
   }
+
   async update(id: string, updateVisitDto: UpdateVisitDto): Promise<Visit> {
     const visit = await this.visitModel.findByIdAndUpdate(
       id,
       {
         ...updateVisitDto,
         patientId: updateVisitDto.patientId ? new Types.ObjectId(updateVisitDto.patientId) : undefined,
-        doctorId: updateVisitDto.doctorId ? new Types.ObjectId(updateVisitDto.doctorId) : undefined,
+        doctorId:  updateVisitDto.doctorId  ? new Types.ObjectId(updateVisitDto.doctorId)  : undefined,
       },
       { new: true, runValidators: true },
     );
 
-    if (!visit) {
-      throw new NotFoundException('Visit not found');
-    }
-
+    if (!visit) throw new NotFoundException('Visit not found');
     return visit;
   }
 
   async remove(id: string): Promise<{ message: string }> {
     const result = await this.visitModel.findByIdAndDelete(id);
-    if (!result) {
-      throw new NotFoundException('Visit not found');
-    }
-
+    if (!result) throw new NotFoundException('Visit not found');
     return { message: 'Visit deleted successfully' };
   }
 }

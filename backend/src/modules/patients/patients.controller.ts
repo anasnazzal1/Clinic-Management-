@@ -29,15 +29,39 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/constants/roles.constant';
 
+type AuthRequest = Request & { user?: { role?: string; linkedId?: string } };
+
 @Controller('patients')
 @ApiTags('Patients')
 export class PatientsController {
   constructor(private readonly patientsService: PatientsService) {}
 
+  // ── GET /patients/my  (doctor-scoped) ──────────────────────────────────────
+  @Get('my')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles([UserRole.DOCTOR])
+  @ApiOperation({
+    summary: 'Get my patients (doctor)',
+    description: 'Returns only patients who have at least one appointment with the authenticated doctor.',
+  })
+  @ApiResponse({ status: 200, description: 'Doctor patients returned', type: [Patient] })
+  async findMyPatients(@Req() req: AuthRequest) {
+    const doctorId = req.user?.linkedId;
+    if (!doctorId) throw new ForbiddenException('Doctor identity could not be resolved');
+
+    const patients = await this.patientsService.findByDoctor(doctorId);
+    return {
+      success: true,
+      data: patients,
+      message: 'Patients retrieved successfully',
+    };
+  }
+
+  // ── GET /patients  (admin + receptionist only) ─────────────────────────────
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles([UserRole.ADMIN, UserRole.RECEPTIONIST])
-  @ApiOperation({ summary: 'Get all patients', description: 'Fetch all patient records' })
+  @ApiOperation({ summary: 'Get all patients', description: 'Admin/Receptionist: fetch all patient records' })
   @ApiResponse({ status: 200, description: 'Patients list returned', type: [Patient] })
   async findAll() {
     const patients = await this.patientsService.findAll();
@@ -48,28 +72,27 @@ export class PatientsController {
     };
   }
 
+  // ── GET /patients/:id ──────────────────────────────────────────────────────
   @Get(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles([UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.PATIENT,UserRole.DOCTOR])
-  @ApiOperation({ summary: 'Get patient by ID', description: 'Fetch patient details by ID' })
+  @Roles([UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.PATIENT, UserRole.DOCTOR])
+  @ApiOperation({ summary: 'Get patient by ID' })
   @ApiParam({ name: 'id', description: 'Patient ID', example: '507f1f77bcf86cd799439011' })
   @ApiResponse({ status: 200, description: 'Patient found', type: Patient })
-  async findOne(
-    @Param('id') id: string,
-    @Req() req: Request & { user?: { role?: string; linkedId?: string } },
-  ) {
-    const user = req.user;
-    if (user?.role === UserRole.PATIENT && user.linkedId !== id) {
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async findOne(@Param('id') id: string, @Req() req: AuthRequest) {
+    const { role, linkedId } = req.user ?? {};
+
+    if (role === UserRole.PATIENT && linkedId !== id) {
       throw new ForbiddenException('Patients can only access their own record');
     }
-    if (user?.role === UserRole.DOCTOR) {
-      const doctorId = user.linkedId;
-      const hasAccess = doctorId
-        ? await this.patientsService.hasAppointmentWithDoctor(id, doctorId)
-        : false;
 
+    if (role === UserRole.DOCTOR) {
+      const hasAccess = linkedId
+        ? await this.patientsService.hasAppointmentWithDoctor(id, linkedId)
+        : false;
       if (!hasAccess) {
-        throw new ForbiddenException();
+        throw new ForbiddenException('You do not have an appointment with this patient');
       }
     }
 
@@ -81,11 +104,12 @@ export class PatientsController {
     };
   }
 
+  // ── POST /patients ─────────────────────────────────────────────────────────
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles([UserRole.ADMIN, UserRole.RECEPTIONIST])
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create patient', description: 'Create a patient record and linked user account' })
+  @ApiOperation({ summary: 'Create patient' })
   @ApiBody({ type: CreatePatientDto })
   @ApiResponse({ status: 201, description: 'Patient created', type: Patient })
   async create(@Body() createPatientDto: CreatePatientDto) {
@@ -97,20 +121,20 @@ export class PatientsController {
     };
   }
 
+  // ── PUT /patients/:id ──────────────────────────────────────────────────────
   @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles([UserRole.ADMIN, UserRole.RECEPTIONIST, UserRole.PATIENT])
-  @ApiOperation({ summary: 'Update patient', description: 'Update patient details' })
+  @ApiOperation({ summary: 'Update patient' })
   @ApiParam({ name: 'id', description: 'Patient ID', example: '507f1f77bcf86cd799439011' })
   @ApiBody({ type: UpdatePatientDto })
   @ApiResponse({ status: 200, description: 'Patient updated', type: Patient })
   async update(
     @Param('id') id: string,
     @Body() updatePatientDto: UpdatePatientDto,
-    @Req() req: Request & { user?: { role?: string; linkedId?: string } },
+    @Req() req: AuthRequest,
   ) {
-    const user = req.user;
-    if (user?.role === UserRole.PATIENT && user.linkedId !== id) {
+    if (req.user?.role === UserRole.PATIENT && req.user.linkedId !== id) {
       throw new ForbiddenException('Patients can only update their own record');
     }
 
@@ -122,10 +146,11 @@ export class PatientsController {
     };
   }
 
+  // ── DELETE /patients/:id ───────────────────────────────────────────────────
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles([UserRole.ADMIN])
-  @ApiOperation({ summary: 'Delete patient', description: 'Delete a patient record' })
+  @ApiOperation({ summary: 'Delete patient' })
   @ApiParam({ name: 'id', description: 'Patient ID', example: '507f1f77bcf86cd799439011' })
   @ApiResponse({ status: 200, description: 'Patient deleted' })
   async remove(@Param('id') id: string) {

@@ -59,6 +59,7 @@ export const doctorsApi = {
 // Patients
 export const patientsApi = {
   getAll: (search?: string) => extractList(api.get('/patients', { params: { search } })),
+  getMy: () => extractList(api.get('/patients/my')),
   getOne: (id: string) => extractData(api.get(`/patients/${id}`)),
   create: (data: any) => extractData(api.post('/patients', data)),
   update: (id: string, data: any) => extractData(api.put(`/patients/${id}`, data)),

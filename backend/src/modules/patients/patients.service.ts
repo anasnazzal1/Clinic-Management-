@@ -82,6 +82,18 @@ export class PatientsService {
     return Boolean(appointment);
   }
 
+  /** Returns distinct patients who have at least one appointment with this doctor. */
+  async findByDoctor(doctorId: string): Promise<Patient[]> {
+    const patientIds = await this.appointmentModel
+      .distinct('patientId', { doctorId: new Types.ObjectId(doctorId) })
+      .exec();
+
+    return this.patientModel
+      .find({ _id: { $in: patientIds } })
+      .sort({ name: 1 })
+      .exec();
+  }
+
   async update(id: string, updatePatientDto: UpdatePatientDto): Promise<Patient> {
     if (updatePatientDto.email) {
       const existingPatient = await this.patientModel.findOne({
