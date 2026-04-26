@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { patientsApi, visitsApi } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { User, ArrowLeft } from 'lucide-react';
+import { User, ArrowLeft, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 
 const DoctorPatientProfilePage = () => {
@@ -35,7 +35,17 @@ const DoctorPatientProfilePage = () => {
         <Button variant="ghost" size="sm" onClick={goBack}>
           <ArrowLeft className="w-4 h-4" /> Back
         </Button>
-        <span className="text-sm text-muted-foreground">Patient profile</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Patient profile</span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/doctor/patients/${id}/print`)}
+            className="gap-1.5"
+          >
+            <Printer className="w-3.5 h-3.5" /> Print Report
+          </Button>
+        </div>
       </div>
 
       <Card className="shadow-card border border-muted/80">

@@ -21,6 +21,7 @@ import AdminAppointments from "./pages/admin/AdminAppointments";
 import { DoctorDashboard, DoctorAppointmentsPage } from "./pages/doctor/DoctorPages";
 import DoctorPatientProfilePage from "./pages/doctor/DoctorPatientProfilePage";
 import VisitCompletePage from "./pages/doctor/VisitCompletePage";
+import PatientPrintPage from "./pages/doctor/PatientPrintPage";
 import { ReceptionistDashboard, AddPatientPage, BookAppointmentPage, ReceptionAppointmentsPage } from "./pages/receptionist/ReceptionistPages";
 import { PatientDashboard, PatientAppointmentsPage, PatientHistoryPage } from "./pages/patient/PatientPages";
 import React from "react";
@@ -58,6 +59,7 @@ const App = () => (
             <Route path="/doctor" element={<ProtectedRoute allowedRoles={['doctor']}><DoctorDashboard /></ProtectedRoute>} />
             <Route path="/doctor/appointments" element={<ProtectedRoute allowedRoles={['doctor']}><DoctorAppointmentsPage /></ProtectedRoute>} />
             <Route path="/doctor/patients/:id" element={<ProtectedRoute allowedRoles={['doctor']}><DoctorPatientProfilePage /></ProtectedRoute>} />
+            <Route path="/doctor/patients/:id/print" element={<ProtectedRoute allowedRoles={['doctor']}><PatientPrintPage /></ProtectedRoute>} />
             <Route path="/visits/:id/complete" element={<ProtectedRoute allowedRoles={['doctor']}><VisitCompletePage /></ProtectedRoute>} />
 
             {/* Receptionist */}

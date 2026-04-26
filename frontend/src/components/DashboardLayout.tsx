@@ -65,7 +65,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
 
       {/* Sidebar */}
       <aside className={cn(
-        'fixed lg:static inset-y-0 left-0 z-50 w-64 flex flex-col bg-sidebar text-sidebar-foreground transition-transform duration-200',
+        'fixed lg:static inset-y-0 left-0 z-50 w-64 flex flex-col bg-sidebar text-sidebar-foreground transition-transform duration-200 print:hidden',
         sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       )}>
         <div className="p-5 flex items-center gap-3 border-b border-sidebar-border">
@@ -118,7 +118,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 border-b bg-card flex items-center px-4 lg:px-6 gap-4 sticky top-0 z-30">
+        <header className="h-14 border-b bg-card flex items-center px-4 lg:px-6 gap-4 sticky top-0 z-30 print:hidden">
           <button className="lg:hidden" onClick={() => setSidebarOpen(true)}>
             <Menu className="w-5 h-5 text-foreground" />
           </button>
@@ -126,7 +126,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
             {items.find(i => location.pathname.startsWith(i.path) && (i.path !== '/admin' || location.pathname === '/admin'))?.label || 'Dashboard'}
           </h1>
         </header>
-        <main className="flex-1 p-4 lg:p-6 overflow-auto">
+        <main className="flex-1 p-4 lg:p-6 overflow-auto print:p-0">
           {children}
         </main>
       </div>
