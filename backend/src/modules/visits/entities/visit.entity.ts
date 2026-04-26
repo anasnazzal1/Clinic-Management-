@@ -23,6 +23,12 @@ export class Visit {
   @Prop()
   notes?: string;
 
+  @Prop()
+  prescription?: string;
+
+  @Prop()
+  followUpDate?: string;
+
   @Prop({ default: Date.now })
   createdAt!: Date;
 

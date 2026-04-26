@@ -20,6 +20,8 @@ export class VisitsService {
       date: createVisitDto.date,
       diagnosis: createVisitDto.diagnosis,
       notes: createVisitDto.notes,
+      prescription: createVisitDto.prescription,
+      followUpDate: createVisitDto.followUpDate,
     });
 
     return visit.save();

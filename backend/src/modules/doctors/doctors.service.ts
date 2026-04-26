@@ -5,7 +5,7 @@ import { Doctor, DoctorDocument } from './entities/doctor.entity';
 import { CreateDoctorDto } from './dto/create-doctor.dto';
 import { UpdateDoctorDto } from './dto/update-doctor.dto';
 import { UsersService } from '../users/users.service';
-import { CreateUserDto } from '../users/dto/create-user.dto';
+import { UserRole } from '../../common/constants/roles.constant';
 
 @Injectable()
 export class DoctorsService {
@@ -42,9 +42,9 @@ export class DoctorsService {
         name: createDoctorDto.name,
         email: createDoctorDto.email,
         password: createDoctorDto.password,
-        role: 'doctor',
+        role: UserRole.DOCTOR,
         linkedId: savedDoctor._id.toString(),
-      } as CreateUserDto & { linkedId?: string });
+      });
     } catch (error) {
       await this.doctorModel.findByIdAndDelete(savedDoctor._id);
       throw error;
@@ -101,6 +101,8 @@ export class DoctorsService {
     if (!result) {
       throw new NotFoundException('Doctor not found');
     }
+
+    await this.usersService.deleteByLinkedId(id);
 
     return { message: 'Doctor deleted successfully' };
   }

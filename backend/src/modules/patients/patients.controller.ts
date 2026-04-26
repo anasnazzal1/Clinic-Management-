@@ -62,6 +62,16 @@ export class PatientsController {
     if (user?.role === UserRole.PATIENT && user.linkedId !== id) {
       throw new ForbiddenException('Patients can only access their own record');
     }
+    if (user?.role === UserRole.DOCTOR) {
+      const doctorId = user.linkedId;
+      const hasAccess = doctorId
+        ? await this.patientsService.hasAppointmentWithDoctor(id, doctorId)
+        : false;
+
+      if (!hasAccess) {
+        throw new ForbiddenException();
+      }
+    }
 
     const patient = await this.patientsService.findOne(id);
     return {

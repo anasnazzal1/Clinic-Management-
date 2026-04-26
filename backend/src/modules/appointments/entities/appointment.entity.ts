@@ -44,3 +44,4 @@ AppointmentSchema.index({ patientId: 1 });
 AppointmentSchema.index({ doctorId: 1 });
 AppointmentSchema.index({ clinicId: 1 });
 AppointmentSchema.index({ date: 1 });
+AppointmentSchema.index({ doctorId: 1, date: 1, time: 1 }, { unique: true, name: 'unique_doctor_date_time' });
