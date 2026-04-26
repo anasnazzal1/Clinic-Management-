@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Appointment, AppointmentDocument, AppointmentStatus } from './entities/appointment.entity';
@@ -14,12 +14,18 @@ export class AppointmentsService {
     createdByPatient: boolean,
   ): Promise<Appointment> {
     const duplicate = await this.appointmentModel
-      .findOne({
+      .findOneAndUpdate(
+        {
         doctorId: new Types.ObjectId(createAppointmentDto.doctorId),
         date: createAppointmentDto.date,
         time: createAppointmentDto.time,
         status: { $nin: ['cancelled', 'deleted'] },
-      })
+        },
+        { $set: {} },
+        { timestamps: false },
+      )
+      .select('_id')
+      .lean()
       .exec();
 
     if (duplicate) {
@@ -96,6 +102,12 @@ export class AppointmentsService {
     const existing = await this.appointmentModel.findById(id).exec();
     if (!existing) {
       throw new NotFoundException('Appointment not found');
+    }
+    if (
+      existing.status === AppointmentStatus.COMPLETED ||
+      existing.status === AppointmentStatus.CANCELLED
+    ) {
+      throw new BadRequestException('Cannot modify a completed or cancelled appointment');
     }
 
     const nextStatus = updateAppointmentDto.status ?? existing.status;

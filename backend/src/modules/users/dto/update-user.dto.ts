@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsEmail } from 'class-validator';
+import { IsOptional, IsString, IsEmail, IsMongoId } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class UpdateUserDto {
@@ -45,7 +45,7 @@ export class UpdateUserDto {
     required: false,
   })
   @IsOptional()
-  @IsString()
+  @IsMongoId()
   linkedId?: string;
 }
 

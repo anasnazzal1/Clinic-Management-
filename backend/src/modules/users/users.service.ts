@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import * as bcrypt from 'bcryptjs';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -23,7 +23,7 @@ export class UsersService {
     return this.createUserForRole(createUserDto);
   }
 
-  async createUserForRole(createUserDto: CreateUserDto & { linkedId?: string }): Promise<User> {
+  async createUserForRole(createUserDto: CreateUserDto): Promise<User> {
     // No role restriction here; used internally by module-specific endpoints
 
     // Check if email already exists
@@ -70,7 +70,7 @@ export class UsersService {
   }
 
   async findByLinkedId(linkedId: string): Promise<User> {
-    const user = await this.userModel.findOne({ linkedId }).select('-passwordHash');
+    const user = await this.userModel.findOne({ linkedId: new Types.ObjectId(linkedId) }).select('-passwordHash');
     if (!user) {
       throw new NotFoundException('User not found');
     }
@@ -118,6 +118,10 @@ export class UsersService {
 
   async getUsersByRole(role: string): Promise<User[]> {
     return this.userModel.find({ role }).select('-passwordHash');
+  }
+
+  async deleteByLinkedId(linkedId: string): Promise<void> {
+    await this.userModel.findOneAndDelete({ linkedId: new Types.ObjectId(linkedId) }).exec();
   }
 }
 

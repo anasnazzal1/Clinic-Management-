@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsEnum, IsMongoId } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserRole } from '../../../common/constants/roles.constant';
 
@@ -43,6 +43,15 @@ export class CreateUserDto {
 
   @IsEnum(UserRole)
   role: UserRole;
+
+  @ApiProperty({
+    description: 'Linked resource ID for doctor/patient/receptionist accounts',
+    example: '507f1f77bcf86cd799439011',
+    required: false,
+  })
+  @IsOptional()
+  @IsMongoId()
+  linkedId?: string;
 }
 
 

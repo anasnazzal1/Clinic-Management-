@@ -226,6 +226,16 @@ export const PatientHistoryPage = () => {
                 </div>
                 <h3 className="font-display font-semibold text-foreground mb-1">{v.diagnosis}</h3>
                 <p className="text-sm text-muted-foreground">{v.notes}</p>
+                {v.prescription && (
+                  <p className="text-sm text-foreground mt-2">
+                    <span className="font-medium">Prescription:</span> {v.prescription}
+                  </p>
+                )}
+                {v.followUpDate && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    <span className="font-medium text-foreground">Follow-up Date:</span> {v.followUpDate}
+                  </p>
+                )}
               </CardContent>
             </Card>
           ))}

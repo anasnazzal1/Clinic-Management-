@@ -9,7 +9,6 @@ import { Receptionist, ReceptionistDocument } from './entities/receptionist.enti
 import { CreateReceptionistDto } from './dto/create-receptionist.dto';
 import { UpdateReceptionistDto } from './dto/update-receptionist.dto';
 import { UsersService } from '../users/users.service';
-import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UserRole } from '../../common/constants/roles.constant';
 
 @Injectable()
@@ -44,7 +43,7 @@ export class ReceptionistsService {
         password: createReceptionistDto.password,
         role: UserRole.RECEPTIONIST,
         linkedId: savedReceptionist._id.toString(),
-      } as CreateUserDto & { linkedId?: string });
+      });
     } catch (error) {
       await this.receptionistModel.findByIdAndDelete(savedReceptionist._id);
       throw error;
@@ -99,6 +98,8 @@ export class ReceptionistsService {
     if (!result) {
       throw new NotFoundException('Receptionist not found');
     }
+
+    await this.usersService.deleteByLinkedId(id);
 
     return { message: 'Receptionist deleted successfully' };
   }

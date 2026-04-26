@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Schema as MongooseSchema, Types } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class User extends Document {
@@ -24,8 +24,8 @@ export class User extends Document {
   })
   role!: string;
 
-  @Prop({ type: String })
-  linkedId?: string;
+  @Prop({ type: MongooseSchema.Types.ObjectId })
+  linkedId?: Types.ObjectId;
 
   @Prop({ default: Date.now })
   createdAt!: Date;

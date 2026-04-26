@@ -179,7 +179,15 @@ export class VisitsController {
   @ApiOperation({ summary: 'Create visit', description: 'Create a new visit record' })
   @ApiBody({ type: CreateVisitDto })
   @ApiResponse({ status: 201, description: 'Visit created', type: Visit })
-  async create(@Body() createVisitDto: CreateVisitDto) {
+  async create(
+    @Body() createVisitDto: CreateVisitDto,
+    @Req() req: Request & { user?: { role?: string; linkedId?: string } },
+  ) {
+    const user = req.user;
+    if (user?.linkedId !== createVisitDto.doctorId) {
+      throw new ForbiddenException('You can only create visits for your own patients');
+    }
+
     const visit = await this.visitsService.create(createVisitDto);
     return {
       success: true,

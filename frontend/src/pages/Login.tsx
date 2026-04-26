@@ -69,26 +69,6 @@ const Login = () => {
                 {loading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
-            <div className="mt-6 border-t pt-4">
-              <p className="text-xs text-muted-foreground text-center mb-2">Demo logins (use accounts that exist in your database)</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-muted-foreground">
-                {[
-                  { label: 'Admin', u: 'admin@clinic.local', p: 'admin123' },
-                  { label: 'Doctor', u: 'dr.sarah@clinic.local', p: 'doctor123' },
-                  { label: 'Reception', u: 'nancy@clinic.local', p: 'recep123' },
-                  { label: 'Patient', u: 'alice@clinic.local', p: 'patient123' },
-                ].map(cred => (
-                  <button
-                    key={cred.label}
-                    type="button"
-                    className="bg-muted rounded-md p-2 text-left hover:bg-accent transition-colors cursor-pointer"
-                    onClick={() => { setEmail(cred.u); setPassword(cred.p); setError(''); }}
-                  >
-                    <span className="font-medium text-foreground">{cred.label}:</span> {cred.u} / {cred.p}
-                  </button>
-                ))}
-              </div>
-            </div>
           </CardContent>
         </Card>
       </motion.div>

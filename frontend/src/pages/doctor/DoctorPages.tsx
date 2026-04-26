@@ -264,7 +264,12 @@ export const DoctorAppointmentsPage = () => {
   // Visit notes dialog
   const [visitOpen, setVisitOpen]           = useState(false);
   const [selectedAppt, setSelectedAppt]     = useState<any>(null);
-  const [visitForm, setVisitForm]           = useState({ notes: '', diagnosis: '' });
+  const [visitForm, setVisitForm]           = useState({
+    notes: '',
+    diagnosis: '',
+    prescription: '',
+    followUpDate: '',
+  });
   const [savingVisit, setSavingVisit]       = useState(false);
 
   // Patient profile dialog
@@ -307,13 +312,20 @@ export const DoctorAppointmentsPage = () => {
         setVisitForm({
           notes: visit?.notes ?? '',
           diagnosis: visit?.diagnosis ?? '',
+          prescription: visit?.prescription ?? '',
+          followUpDate: visit?.followUpDate ?? '',
         });
       } catch {
         toast.error('Could not load visit notes.');
-        setVisitForm({ notes: '', diagnosis: '' });
+        setVisitForm({ notes: '', diagnosis: '', prescription: '', followUpDate: '' });
       }
     } else {
-      setVisitForm({ notes: a.notes || '', diagnosis: a.diagnosis || '' });
+      setVisitForm({
+        notes: a.notes || '',
+        diagnosis: a.diagnosis || '',
+        prescription: '',
+        followUpDate: '',
+      });
     }
     setVisitOpen(true);
   };
@@ -337,6 +349,8 @@ export const DoctorAppointmentsPage = () => {
         date: today,
         diagnosis: visitForm.diagnosis,
         notes: visitForm.notes,
+        prescription: visitForm.prescription,
+        followUpDate: visitForm.followUpDate,
       });
       setAppts(prev => prev.map(a =>
         a._id === selectedAppt._id ? { ...a, status: 'completed' } : a
@@ -599,6 +613,25 @@ export const DoctorAppointmentsPage = () => {
                 value={visitForm.notes}
                 onChange={e => setVisitForm(f => ({ ...f, notes: e.target.value }))}
                 placeholder="Clinical observations, treatment plan..."
+                disabled={selectedAppt?.status !== 'pending'}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Prescription</Label>
+              <Textarea
+                rows={3}
+                value={visitForm.prescription}
+                onChange={e => setVisitForm(f => ({ ...f, prescription: e.target.value }))}
+                placeholder="Medication and dosage instructions..."
+                disabled={selectedAppt?.status !== 'pending'}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Follow-up Date</Label>
+              <Input
+                type="date"
+                value={visitForm.followUpDate}
+                onChange={e => setVisitForm(f => ({ ...f, followUpDate: e.target.value }))}
                 disabled={selectedAppt?.status !== 'pending'}
               />
             </div>
