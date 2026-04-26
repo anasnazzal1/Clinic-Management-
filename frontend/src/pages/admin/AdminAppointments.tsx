@@ -230,14 +230,14 @@ const AdminAppointments = () => {
         }
         toast.success('Appointment updated');
       } else {
-        const { data: created } = await appointmentsApi.create({
+        await appointmentsApi.create({
           patientId: form.patientId,
           doctorId: form.doctorId,
           clinicId: form.clinicId,
           date: form.date,
           time: form.time,
         });
-        setAppointments(prev => [created, ...prev]);
+        await loadAppointments();
         toast.success('Appointment created');
       }
       setDialogOpen(false);

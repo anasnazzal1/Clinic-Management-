@@ -71,12 +71,12 @@ const PatientsManagement = () => {
         }
         toast.success('Patient updated');
       } else {
-        const { data: created } = await patientsApi.create({
+        await patientsApi.create({
           ...payload,
           username: form.username,
           password: form.password,
         });
-        setData(d => [...d, created]);
+        await load();
         toast.success('Patient added');
       }
       setOpen(false);

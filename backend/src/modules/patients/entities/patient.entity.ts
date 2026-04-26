@@ -21,10 +21,7 @@ export class Patient {
   email!: string;
 
   @Prop()
-  address?: string;
-
-  @Prop({ default: Date.now })
-  createdAt!: Date;
+  medicalHistory?: string;
 
   @Prop({ default: Date.now })
   updatedAt!: Date;

@@ -45,7 +45,14 @@ export class AppointmentsService {
       status,
     });
 
-    return appointment.save();
+    return appointment.save().then(saved =>
+      this.appointmentModel
+        .findById(saved._id)
+        .populate('patientId', 'name email phone')
+        .populate('doctorId', 'name specialization email phone')
+        .populate('clinicId', 'name workingDays workingHours')
+        .exec() as Promise<Appointment>,
+    );
   }
 
   async findPendingApproval(): Promise<Appointment[]> {

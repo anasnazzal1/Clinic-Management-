@@ -13,6 +13,7 @@ import { PatientsModule } from './modules/patients/patients.module';
 import { ReceptionistsModule } from './modules/receptionists/receptionists.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { VisitsModule } from './modules/visits/visits.module';
+import { SeederModule } from './database/seeder.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { VisitsModule } from './modules/visits/visits.module';
     ReceptionistsModule,
     AppointmentsModule,
     VisitsModule,
+    SeederModule,
   ],
   controllers: [AppController],
   providers: [AppService],

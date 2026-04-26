@@ -69,6 +69,58 @@ const Login = () => {
                 {loading ? 'Signing in...' : 'Sign In'}
               </Button>
             </form>
+
+            {process.env.NODE_ENV === 'development' && (
+              <div className="mt-6 pt-6 border-t border-muted">
+                <p className="text-xs text-muted-foreground text-center mb-3">Development Quick Login</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setEmail('admin@clinic.com');
+                      setPassword('123456');
+                    }}
+                    className="text-xs"
+                  >
+                    Admin
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setEmail('doctor@clinic.com');
+                      setPassword('123456');
+                    }}
+                    className="text-xs"
+                  >
+                    Doctor
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setEmail('receptionist@clinic.com');
+                      setPassword('123456');
+                    }}
+                    className="text-xs"
+                  >
+                    Receptionist
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setEmail('patient@clinic.com');
+                      setPassword('123456');
+                    }}
+                    className="text-xs"
+                  >
+                    Patient
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>

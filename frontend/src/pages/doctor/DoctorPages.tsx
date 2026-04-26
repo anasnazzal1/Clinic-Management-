@@ -1,101 +1,68 @@
 import { useState, useEffect } from 'react';
-import { appointmentsApi, visitsApi, patientsApi, doctorsApi } from '@/lib/api';
+import { useNavigate } from 'react-router-dom';
+import { appointmentsApi, doctorsApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { StatusBadge } from '@/components/StatusBadge';
-import { DatePicker } from '@/components/ui/date-picker';
-import { TimePicker } from '@/components/ui/time-picker';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel,
   AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
   AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
-  CheckCircle2, XCircle, CalendarPlus, User, Stethoscope,
-  Clock, FileText, TriangleAlert, Calendar, Search, X,
+  CalendarPlus, User, Stethoscope, Clock, Calendar,
+  Search, X, CheckCircle2, XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-/** Patient **record** id from appointment (populated `patientId._id` or raw ObjectId string), never the logged-in user id. */
-function patientRecordIdFromAppointment(appt: { patientId?: unknown }): string | undefined {
-  const ref = appt?.patientId;
-  if (ref == null) return undefined;
-  if (typeof ref === 'object' && ref !== null && '_id' in ref) {
-    return String((ref as { _id: unknown })._id);
-  }
-  return String(ref);
-}
-
-/** Doctor **record** id from appointment. */
-function doctorRecordIdFromAppointment(appt: { doctorId?: unknown }): string | undefined {
-  const ref = appt?.doctorId;
-  if (ref == null) return undefined;
-  if (typeof ref === 'object' && ref !== null && '_id' in ref) {
-    return String((ref as { _id: unknown })._id);
-  }
-  return String(ref);
-}
-
-// ── Dashboard ─────────────────────────────────────────────────────────────────
 export const DoctorDashboard = () => {
   const { user } = useAuth();
-  const [appts, setAppts]       = useState<any[]>([]);
+  const navigate = useNavigate();
+  const [appts, setAppts] = useState<any[]>([]);
   const [patients, setPatients] = useState<any[]>([]);
-  const [search, setSearch]     = useState('');
-  const [patientOpen, setPatientOpen]           = useState(false);
-  const [selectedPatient, setSelectedPatient]   = useState<any>(null);
-  const [patientVisits, setPatientVisits]       = useState<any[]>([]);
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     const listReq = user?.linkedId
       ? appointmentsApi.getByDoctor(user.linkedId)
       : appointmentsApi.getAll();
-    listReq.then(r => {
-      const data: any[] = r.data;
-      setAppts(data);
-      // Derive unique patients from appointments
-      const seen = new Set<string>();
-      const unique: any[] = [];
-      data.forEach(a => {
-        const p = a.patientId;
-        if (p && !seen.has(p._id ?? p)) {
-          seen.add(p._id ?? p);
-          unique.push(p);
-        }
+
+    listReq
+      .then((r) => {
+        const data: any[] = r.data;
+        setAppts(data);
+
+        const seen = new Set<string>();
+        const unique: any[] = [];
+        data.forEach((a) => {
+          const patient = a.patientId;
+          const id = patient?._id ?? patient;
+          if (id && !seen.has(id)) {
+            seen.add(id);
+            unique.push(patient);
+          }
+        });
+        setPatients(unique);
+      })
+      .catch(() => {
+        toast.error('Unable to load appointments.');
       });
-      setPatients(unique);
-    }).catch(() => {});
   }, [user?.linkedId]);
 
-  const q = search.toLowerCase().trim();
-  const filteredPatients = q
-    ? patients.filter(p =>
-        (p.name  ?? '').toLowerCase().includes(q) ||
-        (p.email ?? '').toLowerCase().includes(q) ||
-        (p.phone ?? '').includes(q)
+  const filteredPatients = search.trim()
+    ? patients.filter((p) =>
+        (p.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
+        (p.email ?? '').toLowerCase().includes(search.toLowerCase()) ||
+        (p.phone ?? '').includes(search),
       )
     : patients;
 
-  const openPatient = async (patientId: string) => {
-    try {
-      const [p, v] = await Promise.all([
-        patientsApi.getOne(patientId),
-        visitsApi.getByPatient(patientId),
-      ]);
-      setSelectedPatient(p.data);
-      setPatientVisits(v.data);
-      setPatientOpen(true);
-    } catch { toast.error('Failed to load patient profile.'); }
-  };
-
-  const pending   = appts.filter(a => a.status === 'pending');
-  const completed = appts.filter(a => a.status === 'completed');
-  const cancelled = appts.filter(a => a.status === 'cancelled');
+  const pending = appts.filter((a) => a.status === 'pending');
+  const completed = appts.filter((a) => a.status === 'completed');
+  const cancelled = appts.filter((a) => a.status === 'cancelled');
 
   return (
     <div className="space-y-6">
@@ -104,15 +71,33 @@ export const DoctorDashboard = () => {
         <p className="text-sm text-muted-foreground">Your appointment overview for today.</p>
       </div>
 
-      {/* Stats */}
       <div className="grid sm:grid-cols-4 gap-4">
-        <Card className="shadow-card"><CardContent className="pt-5 text-center"><div className="font-display text-3xl font-bold text-primary">{appts.length}</div><div className="text-xs text-muted-foreground mt-1">Total</div></CardContent></Card>
-        <Card className="shadow-card"><CardContent className="pt-5 text-center"><div className="font-display text-3xl font-bold text-warning">{pending.length}</div><div className="text-xs text-muted-foreground mt-1">Pending</div></CardContent></Card>
-        <Card className="shadow-card"><CardContent className="pt-5 text-center"><div className="font-display text-3xl font-bold text-success">{completed.length}</div><div className="text-xs text-muted-foreground mt-1">Completed</div></CardContent></Card>
-        <Card className="shadow-card"><CardContent className="pt-5 text-center"><div className="font-display text-3xl font-bold text-destructive">{cancelled.length}</div><div className="text-xs text-muted-foreground mt-1">Cancelled</div></CardContent></Card>
+        <Card className="shadow-card">
+          <CardContent className="pt-5 text-center">
+            <div className="font-display text-3xl font-bold text-primary">{appts.length}</div>
+            <div className="text-xs text-muted-foreground mt-1">Total</div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-card">
+          <CardContent className="pt-5 text-center">
+            <div className="font-display text-3xl font-bold text-warning">{pending.length}</div>
+            <div className="text-xs text-muted-foreground mt-1">Pending</div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-card">
+          <CardContent className="pt-5 text-center">
+            <div className="font-display text-3xl font-bold text-success">{completed.length}</div>
+            <div className="text-xs text-muted-foreground mt-1">Completed</div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-card">
+          <CardContent className="pt-5 text-center">
+            <div className="font-display text-3xl font-bold text-destructive">{cancelled.length}</div>
+            <div className="text-xs text-muted-foreground mt-1">Cancelled</div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Patient search */}
       <Card className="shadow-card">
         <CardHeader className="pb-3">
           <CardTitle className="font-display text-base flex items-center gap-2">
@@ -124,15 +109,13 @@ export const DoctorDashboard = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0 space-y-3">
-          {/* Search bar */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               className="pl-9 pr-9"
               placeholder="Search patients by name, email, or phone..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
-              autoFocus={false}
+              onChange={(e) => setSearch(e.target.value)}
             />
             {search && (
               <button
@@ -145,17 +128,16 @@ export const DoctorDashboard = () => {
             )}
           </div>
 
-          {/* Patient list */}
           {filteredPatients.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">
               {search ? 'No patients match your search.' : 'No patients yet.'}
             </p>
           ) : (
             <div className="divide-y">
-              {filteredPatients.map(p => (
+              {filteredPatients.map((p) => (
                 <button
                   key={p._id ?? p}
-                  onClick={() => openPatient(p._id ?? p)}
+                  onClick={() => navigate(`/patients/${p._id ?? p}`)}
                   className="w-full flex items-center gap-3 py-2.5 text-left hover:bg-muted/40 rounded-lg px-2 transition-colors group"
                 >
                   <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center shrink-0">
@@ -165,11 +147,9 @@ export const DoctorDashboard = () => {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                      {p.name ?? '—'}
+                      {p.name ?? '�'}
                     </p>
-                    {p.phone && (
-                      <p className="text-xs text-muted-foreground truncate">{p.phone}</p>
-                    )}
+                    {p.phone && <p className="text-xs text-muted-foreground truncate">{p.phone}</p>}
                   </div>
                   <User className="w-3.5 h-3.5 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </button>
@@ -179,7 +159,6 @@ export const DoctorDashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Upcoming appointments preview */}
       {pending.length > 0 && (
         <Card className="shadow-card">
           <CardHeader className="pb-3">
@@ -198,11 +177,11 @@ export const DoctorDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {pending.slice(0, 5).map(a => (
+                {pending.slice(0, 5).map((a) => (
                   <tr key={a._id} className="border-b last:border-0">
-                    <td className="py-2.5 font-medium text-foreground">{a.patientId?.name || '—'}</td>
-                    <td className="py-2.5 hidden md:table-cell text-muted-foreground">{a.clinicId?.name || '—'}</td>
-                    <td className="py-2.5 text-muted-foreground">{a.date} · {a.time}</td>
+                    <td className="py-2.5 font-medium text-foreground">{a.patientId?.name || '�'}</td>
+                    <td className="py-2.5 hidden md:table-cell text-muted-foreground">{a.clinicId?.name || '�'}</td>
+                    <td className="py-2.5 text-muted-foreground">{a.date} � {a.time}</td>
                     <td className="py-2.5"><StatusBadge status={a.status} /></td>
                   </tr>
                 ))}
@@ -211,166 +190,47 @@ export const DoctorDashboard = () => {
           </CardContent>
         </Card>
       )}
-
-      {/* Patient profile dialog (reused from appointments page) */}
-      <Dialog open={patientOpen} onOpenChange={setPatientOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="font-display flex items-center gap-2">
-              <User className="w-4 h-4 text-primary" /> Patient Profile
-            </DialogTitle>
-          </DialogHeader>
-          {selectedPatient && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 rounded-lg p-3">
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wide">Name</span><p className="font-medium text-foreground mt-0.5">{selectedPatient.name}</p></div>
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wide">Age</span><p className="font-medium text-foreground mt-0.5">{selectedPatient.age}</p></div>
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wide">Gender</span><p className="font-medium text-foreground mt-0.5">{selectedPatient.gender}</p></div>
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wide">Phone</span><p className="font-medium text-foreground mt-0.5">{selectedPatient.phone}</p></div>
-              </div>
-              <div className="border-t pt-4">
-                <h4 className="font-display font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-primary" /> Visit History
-                  <span className="ml-auto text-xs font-normal text-muted-foreground">{patientVisits.length} record{patientVisits.length !== 1 ? 's' : ''}</span>
-                </h4>
-                {patientVisits.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">No previous visits.</p>
-                ) : (
-                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-                    {patientVisits.map(v => (
-                      <div key={v._id} className="rounded-lg border bg-card p-3 text-sm">
-                        <div className="flex justify-between text-muted-foreground text-xs mb-1"><span>{v.date}</span><span>{v.doctorId?.name || '—'}</span></div>
-                        <p className="font-medium text-foreground">{v.diagnosis || '—'}</p>
-                        {v.notes && <p className="text-muted-foreground mt-0.5 text-xs">{v.notes}</p>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
 
-// ── Appointments Page ─────────────────────────────────────────────────────────
 export const DoctorAppointmentsPage = () => {
   const { user } = useAuth();
-  const [appts, setAppts]                   = useState<any[]>([]);
-  const [doctorInfo, setDoctorInfo]         = useState<any>(null);
-
-  // Visit notes dialog
-  const [visitOpen, setVisitOpen]           = useState(false);
-  const [selectedAppt, setSelectedAppt]     = useState<any>(null);
-  const [visitForm, setVisitForm]           = useState({
-    notes: '',
-    diagnosis: '',
-    prescription: '',
-    followUpDate: '',
-  });
-  const [savingVisit, setSavingVisit]       = useState(false);
-
-  // Patient profile dialog
-  const [patientOpen, setPatientOpen]       = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState<any>(null);
-  const [patientVisits, setPatientVisits]   = useState<any[]>([]);
-
-  // Cancel confirmation
-  const [cancelTarget, setCancelTarget]     = useState<any>(null);
-
-  // Follow-up booking dialog
-  const [followUpOpen, setFollowUpOpen]     = useState(false);
+  const navigate = useNavigate();
+  const [appts, setAppts] = useState<any[]>([]);
+  const [doctorInfo, setDoctorInfo] = useState<any>(null);
+  const [cancelTarget, setCancelTarget] = useState<any>(null);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
   const [followUpTarget, setFollowUpTarget] = useState<any>(null);
-  const [followUpForm, setFollowUpForm]     = useState({ date: '', time: '' });
+  const [followUpForm, setFollowUpForm] = useState({ date: '', time: '' });
   const [savingFollowUp, setSavingFollowUp] = useState(false);
-
-  // Appointment search
   const [search, setSearch] = useState('');
 
-  // Load appointments + doctor info
   useEffect(() => {
     const listReq = user?.linkedId
       ? appointmentsApi.getByDoctor(user.linkedId)
       : appointmentsApi.getAll();
-    listReq.then(r => setAppts(r.data)).catch(() => {});
+
+    listReq
+      .then((r) => setAppts(r.data))
+      .catch(() => toast.error('Unable to load appointments.'));
+
     if (user?.linkedId) {
-      doctorsApi.getAll().then(r => {
-        const me = r.data.find((d: any) => d._id === user.linkedId);
-        setDoctorInfo(me ?? null);
-      }).catch(() => {});
+      doctorsApi.getAll()
+        .then((r) => {
+          const me = r.data.find((d: any) => d._id === user.linkedId);
+          setDoctorInfo(me ?? null);
+        })
+        .catch(() => {});
     }
   }, [user?.linkedId]);
 
-  // ── Visit notes ─────────────────────────────────────────────────────────────
-  const openVisit = async (a: any) => {
-    setSelectedAppt(a);
-    if (a.status === 'completed') {
-      try {
-        const { data: visit } = await visitsApi.getByAppointment(String(a._id));
-        setVisitForm({
-          notes: visit?.notes ?? '',
-          diagnosis: visit?.diagnosis ?? '',
-          prescription: visit?.prescription ?? '',
-          followUpDate: visit?.followUpDate ?? '',
-        });
-      } catch {
-        toast.error('Could not load visit notes.');
-        setVisitForm({ notes: '', diagnosis: '', prescription: '', followUpDate: '' });
-      }
-    } else {
-      setVisitForm({
-        notes: a.notes || '',
-        diagnosis: a.diagnosis || '',
-        prescription: '',
-        followUpDate: '',
-      });
-    }
-    setVisitOpen(true);
-  };
-
-  const handleSaveVisit = async () => {
-    if (!selectedAppt) return;
-    const patientRecordId = patientRecordIdFromAppointment(selectedAppt);
-    const doctorRecordId = doctorRecordIdFromAppointment(selectedAppt);
-    if (!patientRecordId || !doctorRecordId) {
-      toast.error('Appointment is missing patient or doctor.');
-      return;
-    }
-    const today = new Date().toISOString().split('T')[0];
-    setSavingVisit(true);
-    try {
-      await appointmentsApi.update(selectedAppt._id, { status: 'completed' });
-      await visitsApi.create({
-        appointmentId: String(selectedAppt._id),
-        patientId: patientRecordId,
-        doctorId: doctorRecordId,
-        date: today,
-        diagnosis: visitForm.diagnosis,
-        notes: visitForm.notes,
-        prescription: visitForm.prescription,
-        followUpDate: visitForm.followUpDate,
-      });
-      setAppts(prev => prev.map(a =>
-        a._id === selectedAppt._id ? { ...a, status: 'completed' } : a
-      ));
-      toast.success('Visit saved — appointment marked as completed.');
-      setVisitOpen(false);
-    } catch {
-      toast.error('Failed to save visit.');
-    } finally {
-      setSavingVisit(false);
-    }
-  };
-
-  // ── Cancel appointment ───────────────────────────────────────────────────────
   const handleCancel = async () => {
     if (!cancelTarget) return;
     try {
       await appointmentsApi.update(cancelTarget._id, { status: 'cancelled' });
-      setAppts(prev => prev.map(a =>
-        a._id === cancelTarget._id ? { ...a, status: 'cancelled' } : a
+      setAppts((prev) => prev.map((a) =>
+        a._id === cancelTarget._id ? { ...a, status: 'cancelled' } : a,
       ));
       toast.success('Appointment cancelled.');
     } catch {
@@ -380,22 +240,6 @@ export const DoctorAppointmentsPage = () => {
     }
   };
 
-  // ── Patient profile ──────────────────────────────────────────────────────────
-  const openPatient = async (patientId: string) => {
-    try {
-      const [p, v] = await Promise.all([
-        patientsApi.getOne(patientId),
-        visitsApi.getByPatient(patientId),
-      ]);
-      setSelectedPatient(p.data);
-      setPatientVisits(v.data);
-      setPatientOpen(true);
-    } catch {
-      toast.error('Failed to load patient profile.');
-    }
-  };
-
-  // ── Follow-up booking ────────────────────────────────────────────────────────
   const openFollowUp = (a: any) => {
     setFollowUpTarget(a);
     setFollowUpForm({ date: '', time: '' });
@@ -407,27 +251,29 @@ export const DoctorAppointmentsPage = () => {
       toast.error('Date and time are required.');
       return;
     }
-    // Double-booking check
-    const clash = appts.find(a =>
+
+    const clash = appts.find((a) =>
       a.patientId?._id === (followUpTarget?.patientId?._id || followUpTarget?.patientId) &&
       a.date === followUpForm.date &&
       a.time === followUpForm.time &&
       a.status === 'pending'
     );
+
     if (clash) {
       toast.error('A pending appointment already exists for this patient at that date and time.');
       return;
     }
+
     setSavingFollowUp(true);
     try {
       const { data: created } = await appointmentsApi.create({
         patientId: followUpTarget.patientId?._id || followUpTarget.patientId,
-        doctorId:  user?.linkedId,
-        clinicId:  followUpTarget.clinicId?._id || followUpTarget.clinicId,
-        date:      followUpForm.date,
-        time:      followUpForm.time,
+        doctorId: user?.linkedId,
+        clinicId: followUpTarget.clinicId?._id || followUpTarget.clinicId,
+        date: followUpForm.date,
+        time: followUpForm.time,
       });
-      setAppts(prev => [created, ...prev]);
+      setAppts((prev) => [created, ...prev]);
       toast.success('Follow-up appointment booked.');
       setFollowUpOpen(false);
     } catch (e: any) {
@@ -437,45 +283,56 @@ export const DoctorAppointmentsPage = () => {
     }
   };
 
-  // ── Row action buttons ───────────────────────────────────────────────────────
+  const appointments = appts.filter((a) =>
+    !search || (a.patientId?.name ?? '').toLowerCase().includes(search.toLowerCase()),
+  );
+
   const ActionButtons = ({ a }: { a: any }) => {
-    if (a.status === 'pending') return (
-      <div className="flex items-center justify-end gap-1 flex-wrap">
-        <Button
-          size="sm"
-          className="bg-success/15 text-success hover:bg-success/25 border-0 gap-1"
-          onClick={() => openVisit(a)}
-        >
-          <CheckCircle2 className="w-3.5 h-3.5" /> Complete
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1"
-          onClick={() => setCancelTarget(a)}
-        >
-          <XCircle className="w-3.5 h-3.5" /> Cancel
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="gap-1"
-          onClick={() => openFollowUp(a)}
-        >
-          <CalendarPlus className="w-3.5 h-3.5" /> Follow-up
-        </Button>
-      </div>
-    );
-    if (a.status === 'completed') return (
-      <div className="flex items-center justify-end gap-1">
-        <Button size="sm" variant="ghost" className="gap-1" onClick={() => openVisit(a)}>
-          <FileText className="w-3.5 h-3.5" /> View Notes
-        </Button>
-        <Button size="sm" variant="outline" className="gap-1" onClick={() => openFollowUp(a)}>
-          <CalendarPlus className="w-3.5 h-3.5" /> Follow-up
-        </Button>
-      </div>
-    );
+    if (a.status === 'pending') {
+      return (
+        <div className="flex items-center justify-end gap-1 flex-wrap">
+          <Button
+            size="sm"
+            className="bg-success/15 text-success hover:bg-success/25 border-0 gap-1"
+            onClick={() => navigate(`/visits/${a._id}/complete`)}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" /> Complete
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1"
+            onClick={() => setCancelTarget(a)}
+          >
+            <XCircle className="w-3.5 h-3.5" /> Cancel
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            onClick={() => openFollowUp(a)}
+          >
+            <CalendarPlus className="w-3.5 h-3.5" /> Follow-up
+          </Button>
+        </div>
+      );
+    }
+
+    if (a.status === 'completed') {
+      return (
+        <div className="flex items-center justify-end gap-1">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1"
+            onClick={() => openFollowUp(a)}
+          >
+            <CalendarPlus className="w-3.5 h-3.5" /> Follow-up
+          </Button>
+        </div>
+      );
+    }
+
     return null;
   };
 
@@ -486,7 +343,6 @@ export const DoctorAppointmentsPage = () => {
         <p className="text-sm text-muted-foreground">Manage your appointments and patient follow-ups.</p>
       </div>
 
-      {/* Doctor working info banner */}
       {doctorInfo && (
         <Card className="shadow-card border-primary/20 bg-primary/5">
           <CardContent className="py-3 flex flex-wrap gap-4 text-sm">
@@ -504,14 +360,13 @@ export const DoctorAppointmentsPage = () => {
 
       <Card className="shadow-card">
         <CardContent className="pt-4 space-y-3">
-          {/* Search bar */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               className="pl-9 pr-9"
               placeholder="Search patients by name..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
             />
             {search && (
               <button
@@ -523,257 +378,107 @@ export const DoctorAppointmentsPage = () => {
               </button>
             )}
           </div>
+
           <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-muted-foreground">
-                <th className="text-left py-2 font-medium">Patient</th>
-                <th className="text-left py-2 font-medium hidden md:table-cell">Department</th>
-                <th className="text-left py-2 font-medium">Date & Time</th>
-                <th className="text-left py-2 font-medium">Status</th>
-                <th className="text-right py-2 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {appts
-                .filter(a => !search || (a.patientId?.name ?? '').toLowerCase().includes(search.toLowerCase()))
-                .map(a => (
-                <tr
-                  key={a._id}
-                  className={`border-b last:border-0 transition-colors ${
-                    a.status === 'cancelled' ? 'opacity-50' : ''
-                  }`}
-                >
-                  <td className="py-2.5">
-                    <button
-                      onClick={() => {
-                        const pid = patientRecordIdFromAppointment(a);
-                        if (pid) openPatient(pid);
-                        else toast.error('No patient record on this appointment.');
-                      }}
-                      className="font-medium text-primary hover:underline flex items-center gap-1"
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-muted-foreground">
+                  <th className="text-left py-2 font-medium">Patient</th>
+                  <th className="text-left py-2 font-medium hidden md:table-cell">Department</th>
+                  <th className="text-left py-2 font-medium">Date & Time</th>
+                  <th className="text-left py-2 font-medium">Status</th>
+                  <th className="text-right py-2 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {appointments.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-muted-foreground">
+                      {search ? 'No appointments match your search.' : 'No appointments found.'}
+                    </td>
+                  </tr>
+                ) : (
+                  appointments.map((a) => (
+                    <tr
+                      key={a._id}
+                      className={`border-b last:border-0 transition-colors ${a.status === 'cancelled' ? 'opacity-50' : ''}`}
                     >
-                      <User className="w-3.5 h-3.5" />
-                      {a.patientId?.name || '—'}
-                    </button>
-                  </td>
-                  <td className="py-2.5 hidden md:table-cell text-muted-foreground">
-                    {a.clinicId?.name || '—'}
-                  </td>
-                  <td className="py-2.5 text-muted-foreground whitespace-nowrap">
-                    <div>{a.date}</div>
-                    <div className="text-xs">{a.time}</div>
-                  </td>
-                  <td className="py-2.5"><StatusBadge status={a.status} /></td>
-                  <td className="py-2.5"><ActionButtons a={a} /></td>
-                </tr>
-              ))}
-              {appts.filter(a => !search || (a.patientId?.name ?? '').toLowerCase().includes(search.toLowerCase())).length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-12 text-center text-muted-foreground">
-                    {search ? 'No appointments match your search.' : 'No appointments found.'}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                      <td className="py-2.5">
+                        <button
+                          onClick={() => {
+                            const pid = a.patientId?._id ?? a.patientId;
+                            if (pid) {
+                              navigate(`/doctor/patients/${pid}`);
+                            } else {
+                              toast.error('No patient record on this appointment.');
+                            }
+                          }}
+                          className="font-medium text-primary hover:underline flex items-center gap-1"
+                        >
+                          <User className="w-3.5 h-3.5" />
+                          {a.patientId?.name || '?'}
+                        </button>
+                      </td>
+                      <td className="py-2.5 hidden md:table-cell text-muted-foreground">{a.clinicId?.name || '?'}</td>
+                      <td className="py-2.5 text-muted-foreground whitespace-nowrap">
+                        <div>{a.date}</div>
+                        <div className="text-xs">{a.time}</div>
+                      </td>
+                      <td className="py-2.5"><StatusBadge status={a.status} /></td>
+                      <td className="py-2.5"><ActionButtons a={a} /></td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>
 
-      {/* ── Visit Notes Dialog ─────────────────────────────────────────────── */}
-      <Dialog open={visitOpen} onOpenChange={setVisitOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="font-display flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary" />
-              {selectedAppt?.status === 'pending' ? 'Complete Appointment' : 'Visit Notes'}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedAppt && (
-            <div className="text-sm text-muted-foreground mb-2 bg-muted/40 rounded-lg px-3 py-2">
-              <span className="font-medium text-foreground">{selectedAppt.patientId?.name}</span>
-              {' · '}{selectedAppt.date} {selectedAppt.time}
-            </div>
-          )}
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <Label>Diagnosis</Label>
-              <Input
-                value={visitForm.diagnosis}
-                onChange={e => setVisitForm(f => ({ ...f, diagnosis: e.target.value }))}
-                placeholder="e.g. Hypertension, Contact Dermatitis..."
-                disabled={selectedAppt?.status !== 'pending'}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Notes</Label>
-              <Textarea
-                rows={4}
-                value={visitForm.notes}
-                onChange={e => setVisitForm(f => ({ ...f, notes: e.target.value }))}
-                placeholder="Clinical observations, treatment plan..."
-                disabled={selectedAppt?.status !== 'pending'}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Prescription</Label>
-              <Textarea
-                rows={3}
-                value={visitForm.prescription}
-                onChange={e => setVisitForm(f => ({ ...f, prescription: e.target.value }))}
-                placeholder="Medication and dosage instructions..."
-                disabled={selectedAppt?.status !== 'pending'}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Follow-up Date</Label>
-              <Input
-                type="date"
-                value={visitForm.followUpDate}
-                onChange={e => setVisitForm(f => ({ ...f, followUpDate: e.target.value }))}
-                disabled={selectedAppt?.status !== 'pending'}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setVisitOpen(false)}>
-              {selectedAppt?.status === 'pending' ? 'Cancel' : 'Close'}
-            </Button>
-            {selectedAppt?.status === 'pending' && (
-              <Button
-                onClick={handleSaveVisit}
-                disabled={savingVisit}
-                className="bg-success text-white hover:bg-success/90 border-0 gap-1"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                {savingVisit ? 'Saving...' : 'Save & Complete'}
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Cancel Confirmation ────────────────────────────────────────────── */}
-      <AlertDialog open={!!cancelTarget} onOpenChange={o => !o && setCancelTarget(null)}>
+      <AlertDialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 font-display">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-destructive/15 shrink-0">
-                <TriangleAlert className="w-4 h-4 text-destructive" />
-              </span>
-              Cancel Appointment?
+              Cancel appointment
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Cancel the appointment for{' '}
-              <span className="font-medium text-foreground">
-                {cancelTarget?.patientId?.name}
-              </span>{' '}
-              on {cancelTarget?.date} at {cancelTarget?.time}? This cannot be undone.
+              This will mark the selected appointment as cancelled and remove it from the pending queue.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setCancelTarget(null)}>Keep</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleCancel}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Yes, Cancel
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleCancel}>Cancel appointment</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ── Patient Profile Dialog ─────────────────────────────────────────── */}
-      <Dialog open={patientOpen} onOpenChange={setPatientOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="font-display flex items-center gap-2">
-              <User className="w-4 h-4 text-primary" /> Patient Profile
-            </DialogTitle>
-          </DialogHeader>
-          {selectedPatient && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 text-sm bg-muted/30 rounded-lg p-3">
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wide">Name</span><p className="font-medium text-foreground mt-0.5">{selectedPatient.name}</p></div>
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wide">Age</span><p className="font-medium text-foreground mt-0.5">{selectedPatient.age}</p></div>
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wide">Gender</span><p className="font-medium text-foreground mt-0.5">{selectedPatient.gender}</p></div>
-                <div><span className="text-muted-foreground text-xs uppercase tracking-wide">Phone</span><p className="font-medium text-foreground mt-0.5">{selectedPatient.phone}</p></div>
-              </div>
-              <div className="border-t pt-4">
-                <h4 className="font-display font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-primary" /> Visit History
-                  <span className="ml-auto text-xs font-normal text-muted-foreground">{patientVisits.length} record{patientVisits.length !== 1 ? 's' : ''}</span>
-                </h4>
-                {patientVisits.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">No previous visits.</p>
-                ) : (
-                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
-                    {patientVisits.map(v => (
-                      <div key={v._id} className="rounded-lg border bg-card p-3 text-sm">
-                        <div className="flex justify-between text-muted-foreground text-xs mb-1">
-                          <span>{v.date}</span>
-                          <span>{v.doctorId?.name || '—'}</span>
-                        </div>
-                        <p className="font-medium text-foreground">{v.diagnosis || '—'}</p>
-                        {v.notes && <p className="text-muted-foreground mt-0.5 text-xs">{v.notes}</p>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Follow-up Booking Dialog ───────────────────────────────────────── */}
       <Dialog open={followUpOpen} onOpenChange={setFollowUpOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="font-display flex items-center gap-2">
-              <CalendarPlus className="w-4 h-4 text-primary" /> Book Follow-up
-            </DialogTitle>
+            <DialogTitle className="font-display text-base">Book follow-up</DialogTitle>
           </DialogHeader>
-          {followUpTarget && (
-            <div className="text-sm text-muted-foreground mb-2 bg-muted/40 rounded-lg px-3 py-2">
-              Patient:{' '}
-              <span className="font-medium text-foreground">
-                {followUpTarget.patientId?.name}
-              </span>
-              {doctorInfo && (
-                <span className="ml-3 text-xs">
-                  Working hours: {doctorInfo.workingDays} · {doctorInfo.workingHours}
-                </span>
-              )}
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label>Date</Label>
-              <DatePicker
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground block">Date</label>
+              <Input
+                type="date"
                 value={followUpForm.date}
-                onChange={v => setFollowUpForm(f => ({ ...f, date: v }))}
-                disabled={d => d < new Date(new Date().setHours(0, 0, 0, 0))}
+                onChange={(e) => setFollowUpForm((prev) => ({ ...prev, date: e.target.value }))}
               />
             </div>
-            <div className="space-y-1">
-              <Label>Time</Label>
-              <TimePicker
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground block">Time</label>
+              <Input
+                type="time"
                 value={followUpForm.time}
-                onChange={v => setFollowUpForm(f => ({ ...f, time: v }))}
+                onChange={(e) => setFollowUpForm((prev) => ({ ...prev, time: e.target.value }))}
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFollowUpOpen(false)}>Cancel</Button>
-            <Button
-              onClick={handleSaveFollowUp}
-              disabled={savingFollowUp}
-              className="gradient-primary border-0 text-primary-foreground gap-1"
-            >
-              <CalendarPlus className="w-4 h-4" />
-              {savingFollowUp ? 'Booking...' : 'Book Follow-up'}
+            <Button onClick={handleSaveFollowUp} disabled={savingFollowUp}>
+              {savingFollowUp ? 'Saving...' : 'Save follow-up'}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { PrimaryButton } from '@/components/ui/PrimaryButton';
 
 interface Clinic {
   _id: string;
@@ -122,7 +123,7 @@ const Landing = () => {
           <div className="flex items-center gap-3">
             <a href="#clinics" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Departments</a>
             <a href="#doctors" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Doctors</a>
-            <Link to="/login"><Button size="sm" className="gradient-primary border-0 text-primary-foreground">Sign In</Button></Link>
+            <Link to="/login"><PrimaryButton size="sm">Sign In</PrimaryButton></Link>
           </div>
         </div>
       </nav>
@@ -142,14 +143,14 @@ const Landing = () => {
             </p>
             <div className="flex flex-wrap gap-3">
               <Link to="/login">
-                <Button size="lg" className="gradient-primary border-0 text-primary-foreground font-semibold">
+                <PrimaryButton size="lg">
                   Get Started <ArrowRight className="ml-2 w-4 h-4" />
-                </Button>
+                </PrimaryButton>
               </Link>
               <a href="#clinics">
-                <Button size="lg" variant="outline" className="border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10">
+                <PrimaryButton size="lg">
                   View Departments
-                </Button>
+                </PrimaryButton>
               </a>
             </div>
           </motion.div>

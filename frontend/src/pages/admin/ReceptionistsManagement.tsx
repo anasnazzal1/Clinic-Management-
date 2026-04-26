@@ -62,12 +62,12 @@ const ReceptionistsManagement = () => {
         }
         toast.success('Receptionist updated');
       } else {
-        const { data: created } = await receptionistsApi.create({
+        await receptionistsApi.create({
           ...payload,
           username: form.username,
           password: form.password,
         });
-        setData(d => [...d, created]);
+        await load();
         toast.success('Receptionist added');
       }
       setOpen(false);

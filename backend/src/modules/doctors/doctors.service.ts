@@ -50,7 +50,10 @@ export class DoctorsService {
       throw error;
     }
 
-    return savedDoctor;
+    return this.doctorModel
+      .findById(savedDoctor._id)
+      .populate('clinicId', 'name workingDays workingHours')
+      .exec() as Promise<Doctor>;
   }
 
   async findAll(): Promise<Doctor[]> {

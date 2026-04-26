@@ -19,9 +19,21 @@ export class VisitsService {
       doctorId: new Types.ObjectId(createVisitDto.doctorId),
       date: createVisitDto.date,
       diagnosis: createVisitDto.diagnosis,
+      treatment: createVisitDto.treatment,
       notes: createVisitDto.notes,
+<<<<<<< HEAD
       prescription: createVisitDto.prescription,
       followUpDate: createVisitDto.followUpDate,
+=======
+      followUpDate: createVisitDto.followUpDate,
+      remarks: createVisitDto.remarks,
+      improvementStatus: createVisitDto.improvementStatus,
+      treatmentDuration: createVisitDto.treatmentDuration,
+      clinicalObservations: createVisitDto.clinicalObservations,
+      followUpActions: createVisitDto.followUpActions,
+      caseStatus: createVisitDto.caseStatus,
+      medicalAlerts: createVisitDto.medicalAlerts,
+>>>>>>> b325177 (add some update)
     });
 
     return visit.save();
